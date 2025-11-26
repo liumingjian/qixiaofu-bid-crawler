@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import random
 import time
 from datetime import datetime, timezone
@@ -11,6 +10,7 @@ from typing import Any, List, Mapping, MutableMapping, Optional, Sequence
 
 import requests
 
+from utils.config_loader import load_config
 from utils.logger import setup_logger
 
 ArticleData = MutableMapping[str, str]
@@ -55,6 +55,9 @@ class SougouWeChatFetcher:
         )
         self.page_size = max(1, int(wechat_cfg.get("page_size", 5) or 5))
         self.days_limit = int(wechat_cfg.get("days_limit", 7) or 0)
+        self.fetch_mode: str = "recent_days" if self.days_limit > 0 else "latest_count"
+        self.fetch_rule_value: int = self.days_limit if self.days_limit > 0 else self.max_articles
+        self._configure_fetch_rule(wechat_cfg.get("fetch_rule", {}))
         self.rate_limit_wait = int(wechat_cfg.get("rate_limit_wait", 60) or 60)
         self.request_timeout = int(wechat_cfg.get("request_timeout", 10) or 10)
         self.retry_count = max(1, int(wechat_cfg.get("retry_count", 3) or 3))
@@ -82,14 +85,13 @@ class SougouWeChatFetcher:
         self.session = session or requests.Session()
 
     def _load_config(self, path: Path) -> Mapping[str, Any]:
-        with path.open("r", encoding="utf-8") as fp:
-            return json.load(fp)
+        return load_config(path)
 
     def fetch_article_list(self, max_articles: Optional[int] = None) -> List[ArticleData]:
         """
         Return article metadata filtered by keywords and recency.
         """
-        limit = max_articles or self.max_articles
+        limit = self._resolve_limit(max_articles)
         if limit <= 0:
             return []
 
@@ -139,6 +141,30 @@ class SougouWeChatFetcher:
 
         self.logger.info("Collected %d article(s) from WeChat backend.", len(articles))
         return articles[:limit]
+
+    def _configure_fetch_rule(self, rule_cfg: Mapping[str, Any] | None) -> None:
+        if not rule_cfg:
+            return
+        mode = str(rule_cfg.get("mode", "")).strip().lower()
+        value = int(rule_cfg.get("value", 0) or 0)
+        if mode not in {"recent_days", "latest_count"} or value <= 0:
+            return
+        self.fetch_mode = mode
+        self.fetch_rule_value = value
+        if mode == "recent_days":
+            self.days_limit = value
+        else:
+            self.max_articles = value
+            # 若未设置天数限制，确保按需取消时间过滤
+            if self.days_limit and self.days_limit > 0 and rule_cfg.get("reset_days_limit", True):
+                self.days_limit = 0
+
+    def _resolve_limit(self, override: Optional[int]) -> int:
+        if override and override > 0:
+            return override
+        if self.fetch_mode == "latest_count" and self.fetch_rule_value > 0:
+            return self.fetch_rule_value
+        return self.max_articles
 
     def _request_with_retry(self, begin: int) -> Optional[Mapping[str, Any]]:
         for attempt in range(1, self.retry_count + 1):

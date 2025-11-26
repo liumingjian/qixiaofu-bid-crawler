@@ -1,9 +1,9 @@
-import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 from storage.file_storage import FileStorage
+from utils.config_loader import load_config
 from utils.logger import setup_logger
 
 
@@ -12,8 +12,7 @@ class DataManager:
 
     def __init__(self, config_file: str = "config.json") -> None:
         self.config_path = Path(config_file)
-        with self.config_path.open("r", encoding="utf-8") as fp:
-            self.config = json.load(fp)
+        self.config = load_config(self.config_path)
 
         base_dir = self.config_path.parent
         paths_cfg = self.config["paths"]

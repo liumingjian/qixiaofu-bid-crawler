@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -10,6 +9,7 @@ from html import escape
 from pathlib import Path
 from typing import Iterable, List, Mapping, MutableMapping, Optional, Sequence
 
+from utils.config_loader import load_config
 from utils.logger import setup_logger
 
 BidRecord = Mapping[str, object]
@@ -59,8 +59,7 @@ class EmailNotificationService:
         self._validate_config()
 
     def _load_config(self, path: Path) -> Mapping[str, object]:
-        with path.open("r", encoding="utf-8") as fp:
-            return json.load(fp)
+        return load_config(path)
 
     def _validate_config(self) -> None:
         missing = []

@@ -9,6 +9,7 @@
 - **招标信息提取**：正则驱动的 `BidInfoExtractor` 拆分多项目文本，提取项目名、预算、采购人、获取文件时间等字段并生成唯一 ID。
 - **数据管理**：使用 JSON 文件持久化文章与招标信息，完成去重、状态管理与基本统计。
 - **通知与界面**：`EmailNotificationService` 发送 HTML 邮件，Flask Web 界面（Bootstrap + 原生 JS）提供招标查询、状态筛选和“一键爬取”。
+- **自动调度**：内置可选的每日/间隔调度器，配置一次即可在设定时间自动触发抓取。
 - **测试保障**：单元测试 + 模拟端到端测试（`tests/test_e2e.py`、`tests/test_performance.py`）覆盖主要流程。
 
 ## 🗂️ 仓库结构
@@ -48,19 +49,81 @@
 
 ## 🔧 配置
 
-`config.json` 包含所有运行参数，常用字段：
-- `wechat.fakeid` / `token` / `cookie`（公众号后台抓取必填）以及 `max_articles_per_crawl` / `keyword_filters` / `days_limit`
+系统内置了默认配置（`core/default_config.py`），运行时会依次合并：
+1. 内置默认值；
+2. 可选的 `config.json`（不存在则跳过）；
+3. 可选的 `custom.json`（推荐仅写入 fetch_rule / 收件人 / 调度等非敏感信息）；
+4. 可选的环境变量 `QIXIAOFU_CONFIG_JSON`（直接提供 JSON 字符串）或 `QIXIAOFU_CONFIG_PATH`（指向私有配置文件）。
+
+常见字段：
+- `wechat.fakeid` / `token` / `cookie`（公众号后台抓取必填）以及 `max_articles_per_crawl` / `keyword_filters` / `fetch_rule`
 - `email.smtp_*` / `sender_email` / `sender_password` / `recipient_emails`
 - `scraper.headless` / `retry_count` / `prompt_on_captcha`
+- `scheduler.enabled` / `cron` / `timezone`（或 `interval_minutes`）
 - `paths.data_dir` / `paths.log_dir`
 
 **如何获取 fakeid / token / cookie**
 1. 在浏览器登录 https://mp.weixin.qq.com/，进入“内容管理 - 图文消息”页。
 2. 地址栏 `...token=xxxxxxxx&lang=zh_CN&f=...` 中的 `token`、`fakeid` 即可复制到配置。
 3. 打开开发者工具 (F12) → Network，任意点击一次“图文消息”列表，请求 Headers 中的 `Cookie` 全量复制到 `wechat.cookie`。
-4. 保持浏览器在线，定期更新 Cookie 以避免 ret=200003（登录过期）。
+4. 如需抓取“最近 N 天”或“最新 M 篇”，可在 `custom.json` 的 `wechat.fetch_rule` 中设置 `mode: recent_days/latest_count` 及 `value`，无需修改主配置。
+5. `scheduler` 支持标准 crontab 表达式（例如 `"0 7 * * *"` 表示每天 07:00），也可指定 `interval_minutes` 周期执行。
+6. 保持浏览器在线，定期更新 Cookie 以避免 ret=200003（登录过期）。
 
-详见 [CONFIGURATION.md](CONFIGURATION.md)。建议在生产环境复制一份 `config.local.json` 并在启动脚本中指定。
+详见 [CONFIGURATION.md](CONFIGURATION.md)。生产部署如需隐藏敏感信息，可在打包前修改 `core/default_config.py` 或以环境变量的形式注入。
+
+示例：通过环境变量注入完整配置
+```bash
+export QIXIAOFU_CONFIG_JSON='{"wechat":{"fakeid":"xxx","token":"yyy","cookie":"..."}, "email":{"smtp_server":"smtp.xxx.com","sender_email":"bot@xxx.com","sender_password":"****"}}'
+./dist/qixiaofu-bid-crawler-linux
+```
+或指向外部文件：
+```bash
+export QIXIAOFU_CONFIG_PATH=/opt/secure/config.prod.json
+./dist/qixiaofu-bid-crawler-linux
+```
+
+### 自动调度
+
+将 `scheduler.enabled` 设为 `true` 即可开启后台调度，可选择：
+
+- `cron`: 标准 crontab 表达式，例如 `"0 7 * * *"` 表示每天 07:00；
+- `interval_minutes`: 设置后将忽略 cron，按指定分钟数循环执行；
+- `timezone`: 解析 cron 的时区，默认 `Asia/Shanghai`（也兼容旧的 `daily_time` 字段）。
+
+调度器运行在独立线程中，会在任务尚未结束时跳过下一次触发，避免重复爬取。
+
+### custom.json
+
+为避免频繁改动默认 `config.json`（其中包含账号、路径等基础配置），日常使用只需维护 `custom.json` 中的几个字段：
+
+```json
+{
+  "wechat": {
+    "fetch_rule": { "mode": "recent_days", "value": 7 }
+  },
+  "email": {
+    "recipient_emails": ["ops@example.com", "boss@example.com"]
+  },
+  "scheduler": {
+    "enabled": true,
+    "cron": "0 7 * * *"
+  }
+}
+```
+
+> `fetch_rule.mode` 可选 `recent_days` / `latest_count`；`value` 为对应的天数或篇数。`email.recipient_emails` 列表决定通知收件人，其他 SMTP 参数留在主配置即可。
+
+常见调度场景：
+
+| 需求 | `cron` 示例 |
+|------|-------------|
+| 每天 07:00 运行 | `0 7 * * *` |
+| 每隔 2 小时运行 | `0 */2 * * *` |
+| 每周一 09:30 运行 | `30 9 * * 1` |
+| 每 5 天早上 08:00 运行 | `0 8 */5 * *` |
+
+如需按固定间隔循环，可改用 `scheduler.interval_minutes`（例如 `120` 表示每 2 小时一次）。***
 
 ## 🚀 快速上手
 
@@ -93,6 +156,7 @@ python -m pytest tests/test_performance.py   # 性能基线（模拟）
 - [QUICKSTART.md](QUICKSTART.md)：快速上手
 - [INSTALL.md](INSTALL.md) / [CONFIGURATION.md](CONFIGURATION.md) / [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 - [docs/test_report.md](docs/test_report.md) / [docs/acceptance_report.md](docs/acceptance_report.md)
+- [docs/BINARY_GUIDE.md](docs/BINARY_GUIDE.md)：二进制打包与部署
 
 ## 💬 支持
 

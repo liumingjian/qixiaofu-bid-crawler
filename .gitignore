@@ -19,6 +19,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.spec
 
 # Virtual Environment
 venv/
@@ -49,4 +50,3 @@ Thumbs.db
 .coverage
 htmlcov/
 .pytest_cache/
-

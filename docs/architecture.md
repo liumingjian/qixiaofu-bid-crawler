@@ -43,7 +43,7 @@
 - 技术要点：
   - 依赖人工登录后台获得 `fakeid`、`token` 和完整 Cookie，Fetcher 使用 `requests.Session` 携带这些凭据发起请求。
   - 支持 `page_size` 分页、重试机制、`request_interval_range` 随机等待以及 rate limit（ret=200013）退避。
-  - 通过 `days_limit` 截断过旧文章，并利用 `keyword_filters` 对标题进行预筛选，仅保留招标相关内容。
+  - 通过 `fetch_rule` 在配置中自定义“最近 N 天”或“最新 M 篇”，内部自动切换 `days_limit` / `max_articles` 并结合 `keyword_filters` 预筛选招标文章。
   - `_normalize_article` 将接口返回的 `create_time` 转为 ISO8601 时间戳，统一供后续持久化与 UI 展示。
 
 ### 2. WeChatArticleScraper
@@ -76,7 +76,7 @@
 
 ### 6. Flask Web 层
 
-- `create_app` 负责依赖注入，默认实例化数据、抓取、提取、通知组件，并将 `CrawlController` 注入应用配置。
+- `create_app` 负责依赖注入，默认实例化数据、抓取、提取、通知组件，并将 `CrawlController`/调度器注入应用配置。
 - API：
   - `POST /api/crawl/start`：触发后台线程执行 `CrawlRunner.run`。
   - `GET /api/crawl/status`：轮询爬取状态与错误信息。
@@ -89,6 +89,7 @@
 - `tests/test_*.py` 覆盖抓取器、提取器、存储、通知以及 Flask API，使用 `pytest` 及依赖注入模拟浏览器/SMTP。
 - `tests/test_e2e.py` 构建端到端模拟流程（Mock Selenium + SMTP），验证 `CrawlRunner` 协同逻辑。
 - `tests/test_performance.py` 通过伪造数据评估提取器/存储的性能基线。
+- `tests/test_scheduler.py` 验证调度器在间隔模式下触发任务及跳过运行中的逻辑。
 
 ## 数据与状态
 
@@ -99,10 +100,17 @@
 
 ## 配置要点
 
-- `wechat.fakeid/token/cookie` 提供后台接口所需凭据，`max_articles_per_crawl`/`keyword_filters`/`days_limit` 控制列表抓取范围。
+- `wechat.fakeid/token/cookie` 提供后台接口所需凭据，`fetch_rule`/`keyword_filters` 控制拉取范围，可通过 `custom.json` 覆盖。
 - `scraper.*` 影响 Selenium 行为：`headless`、`wait_time`、`retry_count/delay`、`random_delay_range`。
 - `email.*` 需提供完整的 SMTP 凭据；`send_test_email()` 可在部署时验证。
 - `paths.data_dir/log_dir` 可重定向到共享存储或 Docker 卷，便于多实例读取。
+- `scheduler.*` 决定是否自动按 `cron` 表达式或 `interval_minutes` 触发抓取。
+
+### 8. 自动调度器
+
+- `core.scheduler.CrawlScheduler` 常驻后台线程，根据配置计算下一次触发时间。
+- 支持 `cron` 表达式（兼容旧的 `daily_time` 字段）或 `interval_minutes` 循环模式，可自由切换。
+- 若当前有任务执行，则记录并跳过下一次计划，防止并发重复爬取。
 
 ## 扩展与二次开发建议
 

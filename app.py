@@ -13,7 +13,9 @@ from core.article_fetcher import SougouWeChatFetcher
 from core.bid_extractor import BidInfoExtractor
 from core.data_manager import DataManager
 from core.notification import EmailNotificationService
+from core.scheduler import CrawlScheduler, SchedulerConfig
 from core.scraper import WeChatArticleScraper
+from utils.config_loader import load_config
 from utils.logger import setup_logger
 
 StatusDict = MutableMapping[str, Any]
@@ -22,8 +24,7 @@ Executor = Callable[[Callable[[], None]], Any]
 
 
 def _load_config(path: Path) -> Dict[str, Any]:
-    with path.open("r", encoding="utf-8") as fp:
-        return json.load(fp)
+    return load_config(path)
 
 
 class CrawlRunner:
@@ -225,11 +226,16 @@ def create_app(
         executor=controller_executor,
     )
 
+    scheduler_cfg = _build_scheduler_config(config_data.get("scheduler", {}))
+    scheduler = CrawlScheduler(controller, scheduler_cfg, logger=logger)
+    scheduler.start()
+
     app.config.update(
         {
             "CRAWL_CONTROLLER": controller,
             "DATA_MANAGER": data_manager,
             "LOGGER": logger,
+            "CRAWL_SCHEDULER": scheduler,
         }
     )
 
@@ -264,6 +270,25 @@ def create_app(
     return app
 
 
+def _build_scheduler_config(raw_cfg: Mapping[str, Any] | None) -> SchedulerConfig:
+    if not raw_cfg:
+        return SchedulerConfig()
+    interval = raw_cfg.get("interval_minutes")
+    try:
+        interval_val = float(interval) if interval is not None else None
+        if interval_val is not None and interval_val <= 0:
+            interval_val = None
+    except (TypeError, ValueError):
+        interval_val = None
+    return SchedulerConfig(
+        enabled=bool(raw_cfg.get("enabled", False)),
+        daily_time=str(raw_cfg.get("daily_time", "07:00")) if "daily_time" in raw_cfg else None,
+        timezone=str(raw_cfg.get("timezone", "Asia/Shanghai")),
+        cron=str(raw_cfg.get("cron", "")).strip() or None,
+        interval_minutes=interval_val,
+    )
+
+
 if __name__ == "__main__":  # pragma: no cover
     application = create_app()
-    application.run(host="0.0.0.0", port=5000, debug=True)
+    application.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)

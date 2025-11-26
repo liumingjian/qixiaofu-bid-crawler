@@ -22,7 +22,12 @@ pip install -r requirements.txt
    - `fakeid/token/cookie`：登录 https://mp.weixin.qq.com/ 后在“内容管理 - 图文消息”页面获取；`token` 与 `fakeid` 位于地址栏参数，Cookie 需在 Network 面板复制整段字符串。
    - `user_agent`、`max_articles_per_crawl`、`keyword_filters`、`days_limit` 等按照需求调整。
 2. 配置 `email.*`（SMTP、发件人、收件人）以便发送通知；`scraper.headless` 首次调试建议设为 `false`，观察浏览器执行情况。
-3. 确认 `paths.data_dir`、`paths.log_dir` 存在或可创建；如需区分环境，可复制为 `config.local.json` 并在启动命令中指定。
+3. 推荐复制 `custom.json`（或 `custom.json.example`）并只填写常用字段：
+   - `wechat.fetch_rule`：决定抓取“最近 N 天”或“最新 M 篇”；
+   - `email.recipient_emails`：需要收到通知的邮箱；
+   - `scheduler`：设置 `enabled` 与 `cron`/`interval_minutes`，例如 `0 7 * * *` 表示每天 7 点执行。
+4. 若需隐藏敏感信息，可在打包/部署前修改 `core/default_config.py` 或通过环境变量 `QIXIAOFU_CONFIG_JSON/QIXIAOFU_CONFIG_PATH` 注入完整配置，而 `custom.json` 仅保留可公开的规则/收件人等字段。
+5. 确认 `paths.data_dir`、`paths.log_dir` 存在或可创建；如需区分环境，可复制为 `config.local.json` 并在启动命令中指定。
 
 ## 4. 快速验证
 ```powershell

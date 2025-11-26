@@ -2,6 +2,8 @@
 
 项目所有运行参数集中在 `config.json`。以下为各字段含义及示例。
 
+> 配置合并顺序：内置默认 (`core/default_config.py`) → 可选 `config.json` → 可选 `custom.json` → 可选环境变量 (`QIXIAOFU_CONFIG_JSON` 或 `QIXIAOFU_CONFIG_PATH`)。因此在真实部署中可以仅提供 `custom.json`/环境变量，避免暴露完整配置文件。
+
 ## 顶层结构
 
 ```json
@@ -31,6 +33,8 @@
 | `request_timeout` | int | 请求超时秒数，默认 10 |
 | `retry_count` / `retry_delay` | int | 接口失败重试次数及等待间隔 |
 | `rate_limit_wait` | int | 遇到 ret=200013（频率限制）后的等待秒数 |
+| `fetch_rule.mode` | string | `recent_days`（按天）或 `latest_count`（按数量） |
+| `fetch_rule.value` | int | `mode` 对应参数，例如最近 7 天或最新 50 篇 |
 
 > **提示**：登录 https://mp.weixin.qq.com/ 后打开“内容管理-图文消息”，浏览器地址栏中即可看到 `token` 与 `fakeid`，同时使用开发者工具复制整段请求 Cookie。上述三项缺一不可，且 Cookie 需要在过期后重新获取。
 
@@ -44,6 +48,18 @@
 | `sender_password` | string | 邮箱授权码/App Password |
 | `recipient_emails` | list | 接收人数组，可配置多个 |
 | `timeout` | int (可选) | SMTP 超时（秒），默认 30 |
+
+## scheduler
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `enabled` | bool | 是否开启自动调度 |
+| `cron` | string | 标准 crontab 表达式，例如 `0 7 * * *`（每天 07:00） |
+| `daily_time` | string | (可选) 兼容旧配置，自动转换为 cron 表达式 |
+| `timezone` | string | 时区名称，默认 `Asia/Shanghai` |
+| `interval_minutes` | number/null | 设置后按间隔循环触发，优先级高于 `daily_time` |
+
+调度器在任务运行过程中会自动跳过下一次计划，避免并发。
 
 ## scraper
 

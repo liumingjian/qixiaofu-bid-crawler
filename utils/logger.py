@@ -1,8 +1,9 @@
-import json
 import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
+
+from utils.config_loader import load_config
 
 __all__ = ["setup_logger"]
 
@@ -16,8 +17,7 @@ def _load_config(config_path: Optional[Union[str, Path]] = None) -> Dict[str, An
         return _CONFIG_CACHE
 
     path = Path(config_path) if config_path else Path(__file__).resolve().parents[1] / "config.json"
-    with path.open("r", encoding="utf-8") as fp:
-        _CONFIG_CACHE = json.load(fp)
+    _CONFIG_CACHE = load_config(path)
     return _CONFIG_CACHE
 
 

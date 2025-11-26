@@ -1,6 +1,4 @@
 from __future__ import annotations
-
-import json
 import random
 import time
 from pathlib import Path
@@ -13,6 +11,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
+from utils.config_loader import load_config
 from utils.logger import setup_logger
 
 ProgressCallback = Callable[[int, int, Optional[Mapping]], None]
@@ -53,8 +52,7 @@ class WeChatArticleScraper:
         self.close()
 
     def _load_config(self, path: Path) -> Mapping:
-        with path.open("r", encoding="utf-8") as fp:
-            return json.load(fp)
+        return load_config(path)
 
     def init_driver(self) -> webdriver.Chrome:
         if self.driver:
