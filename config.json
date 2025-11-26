@@ -1,13 +1,17 @@
 {
   "wechat": {
     "account_name": "七小服公众号",
-    "max_articles_per_crawl": 50
+    "max_articles_per_crawl": 50,
+    "fakeid": "MzI3MjYxNDU0MA==",
+    "token": "1208987345",
+    "cookie": "yyb_muid=23F16509B9E66C1930EF7371B8E96D6F; pgv_pvid=1375943108301057; ptui_loginuin=1414265830; RK=w58FzI7rP/; ptcz=a8968bca9d7196e262445e1fdd17adb406b425fcba37c6a536cf836a660c212a; rewardsn=; wxtokenkey=777; ua_id=Dq3Hv9u6jhhPD6keAAAAAGXwzXaqZzeLHCyfYezL6m8=; _clck=lzmuu4|1|g1c|0; wxuin=64116318888622; mm_lang=zh_CN; uuid=c3c9979a2cb587b6b85bf71d01a4e855; rand_info=CAESIDY7BtNyFyBLUyYjHJOuApDcnqf977kdGB1hckmXcyIL; slave_bizuin=3918178031; data_bizuin=3918178031; bizuin=3918178031; data_ticket=vUGrBq7WEVL98dZ8bp7uu/f1XEFdc6rOkhQPnKLYmMmMauDwCTRsmQx0Ri6QkcTh; slave_sid=dUY0cm5nSkFkWmFpakFycW92REZtaEZXREx0RWlYc1hEX3VNSzNLU2kwMWVuM3hjalYyaEhhQWZOOVhNc3JLWFRNSmx6VU1xeWJSTDRTa1FzV3RyNU1iSDJaZ3lZUk9qSFdWelBNOWhoVG1wMkhWZ21BOVcwYnNETHJrSnJYSW9WVEw3VDFwSms1R294U2JB; slave_user=gh_05ef19a9aec0; xid=9529bbfb2af46ffc2f6becbddba9a8b5; _clsk=k1m9ki|1764116417710|4|1|mp.weixin.qq.com/weheat-agent/payload/record",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
   },
   "email": {
     "smtp_server": "smtp.163.com",
-    "smtp_port": 587,
+    "smtp_port": 465,
     "sender_email": "15521328037@163.com",
-    "sender_password": "ME2YYxHqcZzDSFQq",
+    "sender_password": "WPT9FgJMEmWnTJ2w",
     "recipient_emails": ["1414265830@qq.com"]
   },
   "scraper": {

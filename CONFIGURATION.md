@@ -18,8 +18,21 @@
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `account_name` | string | 公众号名称，例如 “取七小服公众号” |
+| `account_name` | string | 仅用于日志显示，可与后台账号名称保持一致 |
 | `max_articles_per_crawl` | int | 单次最大抓取文章数，建议 30~50 |
+| `fakeid` | string | 公众号后台请求标识，可在浏览器地址栏 `fakeid=` 参数中获取 |
+| `token` | string | 登录后台后附带的 token，同样来自地址栏 `token=` 参数 |
+| `cookie` | string | 登录 `mp.weixin.qq.com` 后的完整 Cookie 字符串，需要定期更新 |
+| `user_agent` | string | 发送请求的 UA，默认为桌面 Chrome |
+| `page_size` | int | 每次向 `appmsg` 接口请求的条数，默认 5 |
+| `days_limit` | int | 仅抓取最近 N 天的文章，设为 0 表示不限制 |
+| `keyword_filters` | list | 标题关键词过滤，空数组表示不过滤 |
+| `request_interval_range` | [int, int] | 请求间隔的随机范围，单位秒 |
+| `request_timeout` | int | 请求超时秒数，默认 10 |
+| `retry_count` / `retry_delay` | int | 接口失败重试次数及等待间隔 |
+| `rate_limit_wait` | int | 遇到 ret=200013（频率限制）后的等待秒数 |
+
+> **提示**：登录 https://mp.weixin.qq.com/ 后打开“内容管理-图文消息”，浏览器地址栏中即可看到 `token` 与 `fakeid`，同时使用开发者工具复制整段请求 Cookie。上述三项缺一不可，且 Cookie 需要在过期后重新获取。
 
 ## email
 

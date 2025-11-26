@@ -17,12 +17,12 @@ pip install -r requirements.txt
 ```
 
 ## 3. 配置
-1. 打开 `config.json`，填写：
-   - `wechat.account_name`: 目标公众号名称
-   - `email.*`: SMTP 信息与收件人
-   - `scraper.headless`: 首次运行建议 `false`，便于通过验证码
-2. 确认 `paths.data_dir`、`paths.log_dir` 存在或可创建。
-3. 若需区分环境，可复制为 `config.local.json` 并在运行命令中指定。
+1. 打开 `config.json`，在 `wechat` 段填写：
+   - `account_name`：仅用于日志显示。
+   - `fakeid/token/cookie`：登录 https://mp.weixin.qq.com/ 后在“内容管理 - 图文消息”页面获取；`token` 与 `fakeid` 位于地址栏参数，Cookie 需在 Network 面板复制整段字符串。
+   - `user_agent`、`max_articles_per_crawl`、`keyword_filters`、`days_limit` 等按照需求调整。
+2. 配置 `email.*`（SMTP、发件人、收件人）以便发送通知；`scraper.headless` 首次调试建议设为 `false`，观察浏览器执行情况。
+3. 确认 `paths.data_dir`、`paths.log_dir` 存在或可创建；如需区分环境，可复制为 `config.local.json` 并在启动命令中指定。
 
 ## 4. 快速验证
 ```powershell

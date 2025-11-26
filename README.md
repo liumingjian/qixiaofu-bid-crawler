@@ -4,7 +4,7 @@
 
 ## ✨ 核心能力
 
-- **搜狗文章列表获取**：Selenium 自动登录并滚动加载公众号历史文章，内置 Cookie 复用与验证码提示。
+- **公众号后台文章列表获取**：借助 `fakeid + token + Cookie` 调用 `mp.weixin.qq.com/cgi-bin/appmsg`，按关键词/时间窗口筛选招标文章。
 - **文章内容爬取**：`core.scraper.WeChatArticleScraper` 支持批量抓取、重试、随机延迟以及进度回调。
 - **招标信息提取**：正则驱动的 `BidInfoExtractor` 拆分多项目文本，提取项目名、预算、采购人、获取文件时间等字段并生成唯一 ID。
 - **数据管理**：使用 JSON 文件持久化文章与招标信息，完成去重、状态管理与基本统计。
@@ -49,10 +49,16 @@
 ## 🔧 配置
 
 `config.json` 包含所有运行参数，常用字段：
-- `wechat.account_name` / `max_articles_per_crawl`
+- `wechat.fakeid` / `token` / `cookie`（公众号后台抓取必填）以及 `max_articles_per_crawl` / `keyword_filters` / `days_limit`
 - `email.smtp_*` / `sender_email` / `sender_password` / `recipient_emails`
 - `scraper.headless` / `retry_count` / `prompt_on_captcha`
 - `paths.data_dir` / `paths.log_dir`
+
+**如何获取 fakeid / token / cookie**
+1. 在浏览器登录 https://mp.weixin.qq.com/，进入“内容管理 - 图文消息”页。
+2. 地址栏 `...token=xxxxxxxx&lang=zh_CN&f=...` 中的 `token`、`fakeid` 即可复制到配置。
+3. 打开开发者工具 (F12) → Network，任意点击一次“图文消息”列表，请求 Headers 中的 `Cookie` 全量复制到 `wechat.cookie`。
+4. 保持浏览器在线，定期更新 Cookie 以避免 ret=200003（登录过期）。
 
 详见 [CONFIGURATION.md](CONFIGURATION.md)。建议在生产环境复制一份 `config.local.json` 并在启动脚本中指定。
 

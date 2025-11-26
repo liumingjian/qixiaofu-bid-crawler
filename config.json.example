@@ -1,7 +1,19 @@
 {
   "wechat": {
     "account_name": "七小服公众号",
-    "max_articles_per_crawl": 50
+    "max_articles_per_crawl": 50,
+    "fakeid": "YOUR_FAKEID",
+    "token": "YOUR_TOKEN",
+    "cookie": "REPLACE_WITH_FULL_COOKIE",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "page_size": 5,
+    "days_limit": 7,
+    "keyword_filters": ["招标", "采购", "询价", "谈判", "磋商", "竞价"],
+    "request_interval_range": [5, 10],
+    "request_timeout": 10,
+    "retry_count": 3,
+    "retry_delay": 5,
+    "rate_limit_wait": 60
   },
   "email": {
     "smtp_server": "smtp.example.com",
@@ -25,4 +37,3 @@
     "level": "INFO"
   }
 }
-
