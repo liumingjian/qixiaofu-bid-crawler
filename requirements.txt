@@ -5,3 +5,5 @@ webdriver-manager==4.0.1
 requests==2.31.0
 pytest==7.4.4
 pyinstaller==6.6.0
+SQLAlchemy==2.0.23
+psycopg2-binary==2.9.9

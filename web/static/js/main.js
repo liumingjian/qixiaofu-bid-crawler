@@ -187,3 +187,211 @@ function showStatus(message, level = 'info') {
 function showError(message) {
     showStatus(message, 'danger');
 }
+
+// Configuration management
+function loadConfig() {
+    fetch('/api/config')
+        .then(handleResponse)
+        .then((payload) => {
+            if (!payload.success) {
+                throw new Error(payload.message || '配置加载失败');
+            }
+            populateConfigForm(payload.data || {});
+        })
+        .catch((err) => {
+            showError(`配置加载失败：${err.message}`);
+        });
+}
+
+function populateConfigForm(config) {
+    // Email
+    const email = config.email || {};
+    const recipients = email.recipient_emails || [];
+    document.getElementById('configRecipients').value = recipients.join('\n');
+
+    // Scheduler
+    const scheduler = config.scheduler || {};
+    document.getElementById('configSchedulerEnabled').checked = scheduler.enabled || false;
+    document.getElementById('configCron').value = scheduler.cron || '';
+}
+
+function saveConfig() {
+    const config = {
+        email: {
+            recipient_emails: document.getElementById('configRecipients').value
+                .split('\n')
+                .map(e => e.trim())
+                .filter(e => e.length > 0)
+        },
+        scheduler: {
+            enabled: document.getElementById('configSchedulerEnabled').checked,
+            cron: document.getElementById('configCron').value.trim()
+        }
+    };
+
+    fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config)
+    })
+        .then(handleResponse)
+        .then((payload) => {
+            if (!payload.success) {
+                throw new Error(payload.message || '保存失败');
+            }
+            showStatus(payload.message || '配置已保存', 'success');
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('configModal'));
+            if (modal) modal.hide();
+        })
+        .catch((err) => {
+            showError(`保存失败：${err.message}`);
+        });
+}
+
+// Load config when modal opens
+document.addEventListener('DOMContentLoaded', () => {
+    const configModal = document.getElementById('configModal');
+    if (configModal) {
+        configModal.addEventListener('show.bs.modal', () => {
+            loadConfig();
+            loadWeChatAccounts(); // Load accounts when config modal opens
+        });
+    }
+});
+
+// WeChat Account Management
+function loadWeChatAccounts() {
+    fetch('/api/sources/wechat')
+        .then(handleResponse)
+        .then((payload) => {
+            if (!payload.success) {
+                throw new Error(payload.message || '加载失败');
+            }
+            renderWeChatAccounts(payload.data || []);
+        })
+        .catch((err) => {
+            document.getElementById('wechatAccountsTable').innerHTML =
+                `<tr><td colspan="5" class="text-center text-danger">加载失败: ${err.message}</td></tr>`;
+        });
+}
+
+function renderWeChatAccounts(accounts) {
+    const tbody = document.getElementById('wechatAccountsTable');
+    if (!accounts.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">暂无账号</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = accounts.map(account => `
+        <tr>
+            <td>${account.name || '-'}</td>
+            <td><span class="badge ${account.enabled ? 'bg-success' : 'bg-secondary'}">${account.enabled ? '启用' : '禁用'}</span></td>
+            <td>${account.page_size || 5}</td>
+            <td>${account.days_limit || 7}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="editAccount('${account.id}')">编辑</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteAccount('${account.id}')">删除</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function showAccountModal(account = null) {
+    const modal = new bootstrap.Modal(document.getElementById('accountModal'));
+    const title = document.getElementById('accountModalTitle');
+
+    if (account) {
+        title.textContent = '编辑公众号';
+        document.getElementById('accountId').value = account.id;
+        document.getElementById('accountName').value = account.name || '';
+        document.getElementById('accountFakeid').value = account.fakeid || '';
+        document.getElementById('accountToken').value = account.token || '';
+        document.getElementById('accountCookie').value = account.cookie || '';
+        document.getElementById('accountPageSize').value = account.page_size || 5;
+        document.getElementById('accountDaysLimit').value = account.days_limit || 7;
+        document.getElementById('accountEnabled').checked = account.enabled !== false;
+    } else {
+        title.textContent = '添加公众号';
+        document.getElementById('accountId').value = '';
+        document.getElementById('accountName').value = '';
+        document.getElementById('accountFakeid').value = '';
+        document.getElementById('accountToken').value = '';
+        document.getElementById('accountCookie').value = '';
+        document.getElementById('accountPageSize').value = 5;
+        document.getElementById('accountDaysLimit').value = 7;
+        document.getElementById('accountEnabled').checked = true;
+    }
+
+    modal.show();
+}
+
+function editAccount(accountId) {
+    fetch('/api/sources/wechat')
+        .then(handleResponse)
+        .then((payload) => {
+            const account = (payload.data || []).find(a => a.id === accountId);
+            if (account) {
+                showAccountModal(account);
+            }
+        })
+        .catch((err) => showError(`加载账号失败: ${err.message}`));
+}
+
+function saveAccount() {
+    const accountId = document.getElementById('accountId').value;
+    const account = {
+        name: document.getElementById('accountName').value.trim(),
+        fakeid: document.getElementById('accountFakeid').value.trim(),
+        token: document.getElementById('accountToken').value.trim(),
+        cookie: document.getElementById('accountCookie').value.trim(),
+        page_size: parseInt(document.getElementById('accountPageSize').value) || 5,
+        days_limit: parseInt(document.getElementById('accountDaysLimit').value) || 7,
+        enabled: document.getElementById('accountEnabled').checked
+    };
+
+    if (!account.name) {
+        showError('账号名称不能为空');
+        return;
+    }
+
+    const url = accountId ? `/api/sources/wechat/${accountId}` : '/api/sources/wechat';
+    const method = accountId ? 'PUT' : 'POST';
+
+    fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(account)
+    })
+        .then(handleResponse)
+        .then((payload) => {
+            if (!payload.success) {
+                throw new Error(payload.message || '保存失败');
+            }
+            showStatus('账号已保存', 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('accountModal'));
+            if (modal) modal.hide();
+            loadWeChatAccounts();
+        })
+        .catch((err) => showError(`保存失败: ${err.message}`));
+}
+
+function deleteAccount(accountId) {
+    if (!confirm('确定要删除此账号吗？')) {
+        return;
+    }
+
+    fetch(`/api/sources/wechat/${accountId}`, {
+        method: 'DELETE'
+    })
+        .then(handleResponse)
+        .then((payload) => {
+            if (!payload.success) {
+                throw new Error(payload.message || '删除失败');
+            }
+            showStatus('账号已删除', 'success');
+            loadWeChatAccounts();
+        })
+        .catch((err) => showError(`删除失败: ${err.message}`));
+}
+

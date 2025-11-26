@@ -1,0 +1,7 @@
+email:
+  recipient_emails:
+    - ops@example.com
+
+scheduler:
+  enabled: false
+  cron: "0 8 * * *"

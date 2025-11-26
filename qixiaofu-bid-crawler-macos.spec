@@ -5,7 +5,7 @@ a = Analysis(
     ['/Users/lmj/projects/ai-project/qixiaofu-bid-crawler/app.py'],
     pathex=[],
     binaries=[],
-    datas=[('/Users/lmj/projects/ai-project/qixiaofu-bid-crawler/web/templates', 'web/templates'), ('/Users/lmj/projects/ai-project/qixiaofu-bid-crawler/web/static', 'web/static'), ('/Users/lmj/projects/ai-project/qixiaofu-bid-crawler/config.json', '.')],
+    datas=[('/Users/lmj/projects/ai-project/qixiaofu-bid-crawler/web/templates', 'web/templates'), ('/Users/lmj/projects/ai-project/qixiaofu-bid-crawler/web/static', 'web/static'), ('/Users/lmj/projects/ai-project/qixiaofu-bid-crawler/config.yml', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

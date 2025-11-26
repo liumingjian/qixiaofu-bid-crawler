@@ -48,6 +48,15 @@ DEFAULT_CONFIG = {
         "log_dir": "data/logs",
     },
     "logging": {"level": "INFO"},
+    "database": {
+        "host": "localhost",
+        "port": 5432,
+        "name": "qixiaofu_crawler",
+        "user": "postgres",
+        "password": "",
+        "url": "",
+        "echo": False,
+    },
 }
 
 

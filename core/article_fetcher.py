@@ -29,7 +29,7 @@ class SougouWeChatFetcher:
 
     def __init__(
         self,
-        config_path: str | Path = "config.json",
+        config_path: str | Path = "config.yml",
         *,
         config: Optional[Mapping[str, Any]] = None,
         session: Optional[requests.Session] = None,

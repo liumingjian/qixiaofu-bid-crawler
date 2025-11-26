@@ -15,25 +15,18 @@
 如果您使用的是打包好的程序（如 `qixiaofu-bid-crawler-macos`），请按以下步骤操作：
 
 ### 1. 准备配置文件
-在程序同级目录下创建一个名为 `custom.json` 的文件，填入您的微信公众号参数和接收邮箱：
+在程序同级目录下创建一个名为 `custom.yml` 的文件，仅填写需要覆盖的配置项，例如：
 
-```json
-{
-  "wechat": {
-    "fakeid": "您的公众号fakeid",
-    "token": "您的token",
-    "cookie": "您的完整cookie"
-  },
-  "email": {
-    "recipient_emails": ["your_email@example.com"]
-  }
-}
+```yaml
+email:
+  recipient_emails:
+    - your_email@example.com
+scheduler:
+  enabled: true
+  cron: "0 8 * * *"
 ```
 
-> **如何获取微信参数？**
-> 1. 登录 [微信公众平台](https://mp.weixin.qq.com/)。
-> 2. 进入“图文消息”页面，URL 中的 `fakeid` 和 `token` 即为所需参数。
-> 3. 按 F12 打开开发者工具，刷新页面，在 Network 面板找到任意请求，复制其 `Cookie`。
+默认公众号账号（七小服）已经保存在 `db/seed.sql` 中，首次启动会自动写入数据库。如需替换默认账号，请编辑 `db/seed.sql` 并重新启动；后续所有账号都可在 Web 界面「设置 → 数据源管理」中维护。
 
 ### 2. 运行程序
 在终端中运行程序：
@@ -86,12 +79,19 @@
 
 ## ⚙️ 进阶配置
 
-除了 `custom.json`，您还可以通过环境变量或修改 `config.json` 进行更多配置。
+除了 `custom.yml`，您还可以通过环境变量或修改 `config.yml` 进行更多配置。
 
 *   **定时任务**: 在配置中设置 `scheduler.enabled: true` 和 `cron` 表达式即可开启自动定时抓取。
 *   **抓取策略**: 修改 `wechat.fetch_rule` 可设定只抓取最近 N 天或最新 N 篇文章。
+*   **数据库管理**: 在 `config.yml` 中配置 `database.url`（或 `host`/`port`/`name` 等字段）即可将公众号账号与抓取到的文章/招标数据统一保存在数据库中。首启时系统会执行 `db/seed.sql` 将七小服等默认账号写入数据库，其余账号可在 Web 界面“数据源管理”中维护。
+
+详细配置参数请参考 [配置指南](docs/guide/configuration.md)。
 
 ## 📂 数据与日志
 
-*   **数据文件**: 抓取的文章和招标信息保存在 `data/articles.json` 和 `data/bids.json`。
+*   **数据文件**: 启用数据库后，所有文章/招标数据都会写入数据库；仅在开发模式下未提供数据库配置时，才会落到 `data/articles.json` 与 `data/bids.json`。
 *   **运行日志**: 详细日志位于 `data/logs/` 目录下。
+
+## ❓ 常见问题
+
+遇到问题？请查看 [故障排除指南](docs/guide/troubleshooting.md)。

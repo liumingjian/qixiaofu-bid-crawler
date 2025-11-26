@@ -16,7 +16,7 @@ def _load_config(config_path: Optional[Union[str, Path]] = None) -> Dict[str, An
     if _CONFIG_CACHE is not None:
         return _CONFIG_CACHE
 
-    path = Path(config_path) if config_path else Path(__file__).resolve().parents[1] / "config.json"
+    path = Path(config_path) if config_path else Path(__file__).resolve().parents[1] / "config.yml"
     _CONFIG_CACHE = load_config(path)
     return _CONFIG_CACHE
 

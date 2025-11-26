@@ -22,7 +22,7 @@ class WeChatArticleScraper:
 
     def __init__(
         self,
-        config_path: str | Path = "config.json",
+        config_path: str | Path = "config.yml",
         *,
         config: Optional[Mapping] = None,
         driver_factory: Optional[Callable[[], webdriver.Chrome]] = None,

@@ -100,7 +100,7 @@
 
 ## 配置要点
 
-- `wechat.fakeid/token/cookie` 提供后台接口所需凭据，`fetch_rule`/`keyword_filters` 控制拉取范围，可通过 `custom.json` 覆盖。
+- `wechat` 段控制抓取策略（如 `fetch_rule`、`keyword_filters`），账号凭据保存在数据库 `wechat_accounts` 表，可通过 `db/seed.sql` 或 Web 界面维护；`custom.yml` 可继续覆盖其他参数。
 - `scraper.*` 影响 Selenium 行为：`headless`、`wait_time`、`retry_count/delay`、`random_delay_range`。
 - `email.*` 需提供完整的 SMTP 凭据；`send_test_email()` 可在部署时验证。
 - `paths.data_dir/log_dir` 可重定向到共享存储或 Docker 卷，便于多实例读取。

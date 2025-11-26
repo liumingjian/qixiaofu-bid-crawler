@@ -24,7 +24,7 @@ class EmailNotificationService:
 
     def __init__(
         self,
-        config_path: str | Path = "config.json",
+        config_path: str | Path = "config.yml",
         *,
         config: Optional[Mapping[str, object]] = None,
         logger=None,

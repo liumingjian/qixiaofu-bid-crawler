@@ -15,23 +15,17 @@
 
 ## 2. 配置文件
 
-- 内置默认配置无需额外文件；实际部署时只需准备 `custom.json`，填写业务变化项，例如：
-  ```json
-  {
-    "wechat": {
-      "fetch_rule": { "mode": "recent_days", "value": 7 }
-    },
-    "email": {
-      "recipient_emails": ["ops@example.com"]
-    },
-    "scheduler": {
-      "enabled": true,
-      "cron": "0 7 * * *",
-      "timezone": "Asia/Shanghai"
-    }
-  }
+- 内置默认配置无需额外文件；实际部署时只需准备 `custom.yml`，填写业务变化项，例如：
+  ```yaml
+  email:
+    recipient_emails:
+      - ops@example.com
+  scheduler:
+    enabled: true
+    cron: "0 7 * * *"
+    timezone: Asia/Shanghai
   ```
-- `custom.json` **不会**被打包入可执行文件，运行时放在可执行文件同目录即可覆盖配置。若不想暴露该文件，可在启动命令前设置 `QIXIAOFU_CONFIG_JSON='{"wechat": {...}}'` 或指向私有路径 `QIXIAOFU_CONFIG_PATH=/path/secure_config.json`。
+- `custom.yml` **不会**被打包入可执行文件，运行时放在可执行文件同目录即可覆盖配置。若不想暴露该文件，可在启动命令前设置 `QIXIAOFU_CONFIG_JSON='{"email": {...}}'` 或指向私有路径 `QIXIAOFU_CONFIG_PATH=/path/secure_config.yml`。
 
 ## 3. 打包
 
@@ -44,12 +38,12 @@ python scripts/package.py
 - `dist/qixiaofu-bid-crawler-macos`
 - `dist/qixiaofu-bid-crawler-linux`
 
-脚本默认打包 `web/templates`、`web/static` 以及 `config.json`。如需附带其他资源，可在 `scripts/package.py` 中追加 `--add-data`。
+脚本默认打包 `web/templates`、`web/static` 以及 `config.yml`。如需附带其他资源，可在 `scripts/package.py` 中追加 `--add-data`。
 
 ## 4. 部署 & 运行
 
 1. 将二进制文件复制到目标服务器。
-2. 将 `custom.json`、ChromeDriver（若需）以及 `web/` 所需资源放置在同一目录/相对路径。
+2. 将 `custom.yml`、ChromeDriver（若需）以及 `web/` 所需资源放置在同一目录/相对路径。
 3. 启动：
    ```bash
    chmod +x qixiaofu-bid-crawler-macos   # Linux/macOS
@@ -60,7 +54,7 @@ python scripts/package.py
 
 ## 5. 调度示例
 
-在 `custom.json` 的 `scheduler` 段配置以下任一规则：
+在 `custom.yml` 的 `scheduler` 段配置以下任一规则：
 
 | 场景 | 配置 |
 |------|------|
@@ -72,7 +66,7 @@ python scripts/package.py
 
 ## 6. 常见问题
 
-- **custom.json 没生效？** 确保文件与可执行文件同目录，且内容为合法 JSON。
+- **custom.yml 没生效？** 确保文件与可执行文件同目录，且内容为合法 YAML。
 - **打包后模板丢失？** 检查 `scripts/package.py` 中 `--add-data` 是否覆盖 `web/templates`、`web/static`。
 - **缺少 ChromeDriver/浏览器？** 打包不包含第三方浏览器，请在目标机上安装对应版本并确保 PATH 可访问。
 

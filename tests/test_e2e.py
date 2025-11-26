@@ -1,4 +1,3 @@
-import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -6,6 +5,7 @@ from pathlib import Path
 from app import CrawlRunner
 from core.bid_extractor import BidInfoExtractor
 from core.data_manager import DataManager
+from utils.config_loader import dump_config
 from utils.logger import setup_logger
 
 
@@ -74,7 +74,7 @@ class CrawlRunnerIntegrationTest(unittest.TestCase):
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.log_dir.mkdir(parents=True, exist_ok=True)
 
-        self.config_path = Path(self.tmpdir.name) / "config.json"
+        self.config_path = Path(self.tmpdir.name) / "config.yml"
         config = {
             "paths": {"data_dir": str(self.data_dir), "log_dir": str(self.log_dir)},
             "wechat": {"account_name": "测试号", "max_articles_per_crawl": 3},
@@ -87,7 +87,7 @@ class CrawlRunnerIntegrationTest(unittest.TestCase):
             },
             "scraper": {"headless": True},
         }
-        self.config_path.write_text(json.dumps(config), encoding="utf-8")
+        dump_config(self.config_path, config)
         self.config = config
 
         self.logger = setup_logger("IntegrationTest", log_dir=self.log_dir)

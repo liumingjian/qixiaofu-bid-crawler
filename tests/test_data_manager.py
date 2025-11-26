@@ -1,10 +1,11 @@
-import json
 import tempfile
 import unittest
 from pathlib import Path
 
 from core.data_manager import DataManager
+from core.database import Database
 from storage.file_storage import FileStorage
+from utils.config_loader import dump_config
 
 
 class TestFileStorage(unittest.TestCase):
@@ -48,8 +49,8 @@ class TestDataManager(unittest.TestCase):
                 "log_dir": str(shared_log_dir),
             }
         }
-        self.config_path = tmp_path / "config.json"
-        self.config_path.write_text(json.dumps(config), encoding="utf-8")
+        self.config_path = tmp_path / "config.yml"
+        dump_config(self.config_path, config)
         self.manager = DataManager(str(self.config_path))
 
     def tearDown(self) -> None:
@@ -129,6 +130,85 @@ class TestDataManager(unittest.TestCase):
         self.assertEqual(1, stats["new_bids"])
         self.assertEqual(1, stats["notified_bids"])
         self.assertEqual(1, stats["archived_bids"])
+
+
+class TestDataManagerDatabase(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmpdir = tempfile.TemporaryDirectory()
+        tmp_path = Path(self.tmpdir.name)
+        log_dir = Path(self.tmpdir.name) / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        self.db_path = tmp_path / "bids.sqlite"
+        self.config = {
+            "paths": {
+                "data_dir": str(tmp_path / "data"),
+                "log_dir": str(log_dir),
+            },
+            "database": {
+                "enabled": True,
+                "url": f"sqlite:///{self.db_path}",
+            },
+        }
+        self.config_path = tmp_path / "config.yml"
+        dump_config(self.config_path, self.config)
+        self.database = Database(self.config)
+        self.database.create_tables()
+        self.manager = DataManager(
+            str(self.config_path),
+            config=self.config,
+            db_session_factory=self.database.get_session_factory(),
+        )
+
+    def tearDown(self) -> None:
+        if hasattr(self, "manager"):
+            for handler in list(self.manager.logger.handlers):
+                handler.close()
+                self.manager.logger.removeHandler(handler)
+        self.tmpdir.cleanup()
+
+    def _sample_bid(self, suffix: int, **overrides) -> dict:
+        payload = {
+            "id": f"db-bid-{suffix}",
+            "project_name": f"DB Project {suffix}",
+            "budget": f"{suffix}万元",
+            "purchaser": f"Purchaser {suffix}",
+            "doc_time": "2025-12-01",
+            "status": "new",
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_bid_crud_in_database(self) -> None:
+        bid = self._sample_bid(1)
+        created = self.manager.save_bids([bid])
+        self.assertEqual(1, len(created))
+        self.assertEqual(0, len(self.manager.save_bids([bid])))
+
+        notified = self.manager.update_bid_status("db-bid-1", "notified")
+        self.assertTrue(notified)
+        stored = self.manager.get_all_bids(status="notified")
+        self.assertEqual(1, len(stored))
+
+    def test_article_and_stats_in_database(self) -> None:
+        article = {
+            "url": "https://db-example.com/a",
+            "title": "DB Article",
+            "author": "Tester",
+        }
+        self.assertTrue(self.manager.save_article(article))
+        self.assertFalse(self.manager.save_article(article))
+
+        bids = [
+            self._sample_bid(1, status="new"),
+            self._sample_bid(2, status="notified"),
+        ]
+        self.manager.save_bids(bids)
+
+        stats = self.manager.get_stats()
+        self.assertEqual(1, stats["total_articles"])
+        self.assertEqual(2, stats["total_bids"])
+        self.assertEqual(1, stats["new_bids"])
+        self.assertEqual(1, stats["notified_bids"])
 
 
 if __name__ == "__main__":
