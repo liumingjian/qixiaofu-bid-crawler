@@ -1,0 +1,28 @@
+{
+  "wechat": {
+    "account_name": "七小服公众号",
+    "max_articles_per_crawl": 50
+  },
+  "email": {
+    "smtp_server": "smtp.example.com",
+    "smtp_port": 587,
+    "sender_email": "your_email@example.com",
+    "sender_password": "your_password_here",
+    "recipient_emails": ["recipient@example.com"]
+  },
+  "scraper": {
+    "headless": true,
+    "wait_time": 5,
+    "retry_count": 3,
+    "retry_delay": 5,
+    "random_delay_range": [2, 5]
+  },
+  "paths": {
+    "data_dir": "data",
+    "log_dir": "data/logs"
+  },
+  "logging": {
+    "level": "INFO"
+  }
+}
+

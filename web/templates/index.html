@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="mb-4">
+    <div class="row g-3" id="statsRow">
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-label">招标总数</div>
+                <div class="stat-value" id="statTotalBids">0</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-label">新招标</div>
+                <div class="stat-value" id="statNewBids">0</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-label">文章总数</div>
+                <div class="stat-value" id="statTotalArticles">0</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-label">已通知</div>
+                <div class="stat-value" id="statNotifiedBids">0</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<ul class="nav nav-tabs" id="statusTabs">
+    <li class="nav-item">
+        <a class="nav-link active" href="#" onclick="filterBids('all', event)">全部</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#" onclick="filterBids('new', event)">新发现</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#" onclick="filterBids('notified', event)">已通知</a>
+    </li>
+</ul>
+
+<div id="statusBar" class="alert alert-info mt-3 d-none">
+    <span id="statusMessage"></span>
+</div>
+
+<div id="bidsContainer" class="mt-3"></div>
+
+<div id="emptyState" class="text-center text-muted mt-5 d-none">
+    <div class="empty-illustration mb-3">📭</div>
+    <h4>暂无招标信息</h4>
+    <p>点击“开始爬取”按钮以获取最新数据。</p>
+</div>
+{% endblock %}
