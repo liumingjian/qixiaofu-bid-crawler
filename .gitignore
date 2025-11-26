@@ -40,7 +40,6 @@ data/*.log
 
 # Sensitive files
 *cookies*.json
-config.json
 
 # OS
 .DS_Store
