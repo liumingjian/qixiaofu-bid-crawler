@@ -1,7 +1,62 @@
+wechat:
+  account_name: 七小服公众号
+  max_articles_per_crawl: 50
+  fakeid: ""
+  token: ""
+  cookie: ""
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  page_size: 5
+  article_limit: 10
+  keyword_filters:
+    - gaussdb
+    - 高斯
+    - 数据库
+    - 信创
+    - 数据迁移
+    - 数据同步
+  request_interval_range:
+    - 5
+    - 10
+  request_timeout: 10
+  retry_count: 3
+  retry_delay: 5
+  rate_limit_wait: 60
+  fetch_rule:
+    mode: latest_count
+    value: 10
+  filter_keyword_logic: OR
+  filter_keywords:
+    - gaussdb
+    - 高斯
+    - 数据库
+    - 信创
+    - 数据迁移
+    - 数据同步
 email:
   recipient_emails:
-    - ops@example.com
-
+    - 1414265830@qq.com
 scheduler:
   enabled: false
-  cron: "0 8 * * *"
+  cron: "0 7 * * *"
+scraper:
+  headless: true
+  wait_time: 5
+  retry_count: 3
+  retry_delay: 5
+  random_delay_range:
+    - 2
+    - 5
+paths:
+  data_dir: data
+  log_dir: data/logs
+logging:
+  level: INFO
+database:
+  host: localhost
+  port: 5432
+  name: postgres
+  user: root
+  password: root
+  url: null
+  echo: false
+bid_sites:

@@ -798,4 +798,4 @@ def _apply_seed_sql(session_factory, sql_path: Optional[Path], logger) -> None:
 
 if __name__ == "__main__":  # pragma: no cover
     application = create_app()
-    application.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)
+    application.run(host="0.0.0.0", port=5000, debug=True, use_reloader=True)

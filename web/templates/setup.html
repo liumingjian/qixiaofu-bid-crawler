@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,130 +9,510 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            background-color: var(--bg-secondary);
+            margin: 0;
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
-            padding: var(--spacing-4);
-        }
-        .setup-container {
-            width: 100%;
-            max-width: 500px;
-            background: var(--bg-primary);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-xl);
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #6366f1 100%);
+            position: relative;
             overflow: hidden;
-            animation: slideUp 0.5s ease-out;
+            padding: var(--spacing-4);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
-        .setup-header {
-            background: linear-gradient(135deg, var(--primary-color) 0%, #1e3a8a 100%);
-            color: white;
-            padding: 40px var(--spacing-6);
-            text-align: center;
+
+        body::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image:
+                radial-gradient(circle at 20% 30%, rgba(99, 102, 241, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(59, 130, 246, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(147, 51, 234, 0.2) 0%, transparent 50%);
+            animation: float 25s ease-in-out infinite alternate;
         }
-        .setup-header h1 {
-            font-size: 24px;
-            font-weight: 600;
-            margin-bottom: var(--spacing-2);
-        }
-        .setup-header p {
-            opacity: 0.9;
-            font-size: 14px;
-        }
-        .setup-body {
-            padding: var(--spacing-8);
-        }
-        .step-indicators {
-            display: flex;
-            justify-content: center;
-            margin-bottom: var(--spacing-8);
-        }
-        .step-indicator {
-            width: 10px;
-            height: 10px;
+
+        body::after {
+            content: '';
+            position: absolute;
+            width: 600px;
+            height: 600px;
             border-radius: 50%;
-            background: var(--border-color);
-            margin: 0 6px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.05) 0%, transparent 70%);
+            top: -300px;
+            right: -200px;
+            animation: pulse 8s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+            50% {
+                transform: translate(-30px, 30px) scale(1.05);
+            }
+            100% {
+                transform: translate(20px, -20px) scale(0.95);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 0.3;
+            }
+            50% {
+                transform: scale(1.1);
+                opacity: 0.5;
+            }
+        }
+
+        .setup-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 600px;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 24px;
+            box-shadow:
+                0 8px 32px rgba(31, 38, 135, 0.15),
+                0 2px 8px rgba(0, 0, 0, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            overflow: hidden;
+            animation: slideUp 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px) scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .setup-header {
+            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%);
+            color: white;
+            padding: 48px 32px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .setup-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .header-icon {
+            width: 88px;
+            height: 88px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            margin: 0 auto 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+            border: 3px solid rgba(255, 255, 255, 0.4);
+            position: relative;
+            z-index: 1;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .header-icon i {
+            font-size: 44px;
+            color: white;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+        }
+
+        .setup-header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 0 0 10px 0;
+            letter-spacing: 0.5px;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .setup-header p {
+            margin: 0;
+            opacity: 0.95;
+            font-size: 15px;
+            font-weight: 400;
+            position: relative;
+            z-index: 1;
+            letter-spacing: 0.3px;
+        }
+
+        .setup-body {
+            padding: 40px 30px;
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+
+        /* Modern Progress Bar */
+        .progress-container {
+            margin-bottom: 40px;
+        }
+
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .progress-line {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #e5e7eb;
+            z-index: 0;
+        }
+
+        .progress-line-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%);
+            transition: width 0.5s ease;
+            width: 0;
+        }
+
+        .progress-step {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            flex: 1;
+        }
+
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid #e5e7eb;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 16px;
+            color: #9ca3af;
             transition: all 0.3s ease;
+            margin-bottom: 8px;
         }
-        .step-indicator.active {
-            background: var(--primary-color);
-            transform: scale(1.2);
+
+        .progress-step.active .step-circle {
+            border-color: #3b82f6;
+            color: #3b82f6;
+            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            animation: pulse 2s ease-in-out infinite;
         }
-        .step-indicator.completed {
-            background: var(--success-color);
+
+        .progress-step.completed .step-circle {
+            border-color: #10b981;
+            background: #10b981;
+            color: white;
         }
-        
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .step-label {
+            font-size: 13px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .progress-step.active .step-label {
+            color: #3b82f6;
+            font-weight: 600;
+        }
+
+        .progress-step.completed .step-label {
+            color: #10b981;
+        }
+
         /* Form Sections */
         .step-section {
             display: none;
-            animation: fadeIn 0.3s ease-in-out;
+            animation: fadeIn 0.4s ease-in-out;
         }
+
         .step-section.active {
             display: block;
         }
 
-        .form-group {
-            margin-bottom: var(--spacing-4);
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
         }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
         .form-label {
             display: block;
             margin-bottom: 8px;
-            font-weight: 500;
+            font-weight: 600;
             color: var(--text-primary);
             font-size: 14px;
         }
-        
-        .status-alert {
-            padding: 12px;
-            border-radius: var(--radius-sm);
-            margin-bottom: var(--spacing-4);
-            font-size: 13px;
-            display: none;
-            animation: shake 0.3s ease-in-out;
-        }
-        .status-error {
-            background-color: #fef2f2;
-            color: var(--danger-color);
-            border: 1px solid #fee2e2;
-        }
-        .status-success {
-            background-color: #ecfdf5;
-            color: var(--success-color);
-            border: 1px solid #d1fae5;
+
+        .input-wrapper {
+            position: relative;
         }
 
-        @keyframes slideUp {
-            from { transform: translateY(20px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
+        .input-wrapper i {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+            font-size: 16px;
+            pointer-events: none;
+            transition: color 0.3s ease;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+
+        .input-wrapper input {
+            width: 100%;
+            padding: 14px 16px 14px 48px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: all 0.3s ease;
         }
+
+        .input-wrapper input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
+        .input-wrapper input:focus+i {
+            color: #667eea;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .status-alert {
+            padding: 14px 16px;
+            border-radius: 10px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            display: none;
+            border-left: 4px solid;
+            animation: shake 0.4s ease-in-out;
+        }
+
+        .status-alert i {
+            margin-right: 8px;
+        }
+
+        .status-error {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            color: #991b1b;
+            border-color: #dc2626;
+        }
+
+        .status-success {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            color: #065f46;
+            border-color: #10b981;
+        }
+
         @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-10px);
+            }
+
+            75% {
+                transform: translateX(10px);
+            }
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 32px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%);
+            color: white;
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(59, 130, 246, 0.5);
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .connection-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-verified {
+            background: #d1fae5;
+            color: #065f46;
         }
     </style>
 </head>
+
 <body>
     <div class="setup-container">
         <div class="setup-header">
-            <div style="margin-bottom: 16px;">
-                <i class="bi bi-rocket-takeoff-fill" style="font-size: 40px;"></i>
+            <div class="header-icon">
+                <i class="bi bi-rocket-takeoff" id="headerIcon"></i>
             </div>
             <h1 id="headerTitle">系统初始化</h1>
             <p id="headerDesc">配置数据库连接以启动系统</p>
         </div>
-        
+
         <div class="setup-body">
-            <div class="step-indicators">
-                <div class="step-indicator active" id="step1Dot"></div>
-                <div class="step-indicator" id="step2Dot"></div>
+            <div class="progress-container">
+                <div class="progress-steps">
+                    <div class="progress-line">
+                        <div class="progress-line-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-step active" id="stepIndicator1">
+                        <div class="step-circle">1</div>
+                        <div class="step-label">数据库配置</div>
+                    </div>
+                    <div class="progress-step" id="stepIndicator2">
+                        <div class="step-circle">2</div>
+                        <div class="step-label">管理员设置</div>
+                    </div>
+                </div>
             </div>
 
             <div id="statusAlert" class="status-alert"></div>
@@ -141,45 +522,54 @@
                 <form id="dbForm" onsubmit="return false;">
                     <div class="form-group">
                         <label class="form-label">数据库主机 (Host)</label>
-                        <div style="position: relative;">
-                            <input type="text" id="dbHost" value="{{ db_config.get('host', 'localhost') }}" placeholder="例如: localhost" style="padding-left: 36px;">
-                            <i class="bi bi-hdd-network" style="position: absolute; left: 12px; top: 12px; color: var(--text-tertiary);"></i>
+                        <div class="input-wrapper">
+                            <input type="text" id="dbHost" value="{{ db_config.get('host', 'localhost') }}"
+                                placeholder="例如: localhost">
+                            <i class="bi bi-hdd-network"></i>
                         </div>
                     </div>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-4);">
+
+                    <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">端口 (Port)</label>
-                            <input type="number" id="dbPort" value="{{ db_config.get('port', 5432) }}" placeholder="5432">
+                            <input type="number" id="dbPort" value="{{ db_config.get('port', 5432) }}"
+                                placeholder="5432" style="padding-left: 16px;">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">数据库名 (DB Name)</label>
-                            <input type="text" id="dbName" value="{{ db_config.get('name', 'qixiaofu_crawler') }}" placeholder="qixiaofu_crawler">
+                            <label class="form-label">数据库名</label>
+                            <input type="text" id="dbName" value="{{ db_config.get('name', 'qixiaofu_crawler') }}"
+                                placeholder="qixiaofu_crawler" style="padding-left: 16px;">
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">用户名 (User)</label>
-                        <div style="position: relative;">
-                            <input type="text" id="dbUser" value="{{ db_config.get('user', 'postgres') }}" placeholder="postgres" style="padding-left: 36px;">
-                            <i class="bi bi-person" style="position: absolute; left: 12px; top: 12px; color: var(--text-tertiary);"></i>
+                        <div class="input-wrapper">
+                            <input type="text" id="dbUser" value="{{ db_config.get('user', 'postgres') }}"
+                                placeholder="postgres">
+                            <i class="bi bi-person"></i>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">密码 (Password)</label>
-                        <div style="position: relative;">
-                            <input type="password" id="dbPassword" value="{{ db_config.get('password', '') }}" placeholder="数据库密码" style="padding-left: 36px;">
-                            <i class="bi bi-key" style="position: absolute; left: 12px; top: 12px; color: var(--text-tertiary);"></i>
+                        <div class="input-wrapper">
+                            <input type="password" id="dbPassword" value="{{ db_config.get('password', '') }}"
+                                placeholder="数据库密码">
+                            <i class="bi bi-key"></i>
                         </div>
                     </div>
 
-                    <div style="margin-top: var(--spacing-8); display: flex; gap: var(--spacing-4);">
-                        <button type="button" class="btn-secondary" style="flex: 1;" onclick="testConnection()" id="testBtn">
-                            测试连接
+                    <div id="connectionStatus"></div>
+
+                    <div class="button-group">
+                        <button type="button" class="btn btn-secondary" onclick="testConnection()" id="testBtn">
+                            <i class="bi bi-plugin"></i>
+                            <span>测试连接</span>
                         </button>
-                        <button type="button" class="btn-primary" style="flex: 1;" onclick="goToStep2()" id="nextBtn" disabled>
-                            下一步 <i class="bi bi-arrow-right ms-2"></i>
+                        <button type="button" class="btn btn-primary" onclick="goToStep2()" id="nextBtn" disabled>
+                            <span>下一步</span>
+                            <i class="bi bi-arrow-right"></i>
                         </button>
                     </div>
                 </form>
@@ -190,34 +580,36 @@
                 <form id="adminForm" onsubmit="return false;">
                     <div class="form-group">
                         <label class="form-label">管理员用户名</label>
-                        <div style="position: relative;">
-                            <input type="text" id="adminUser" value="admin" placeholder="admin" style="padding-left: 36px;">
-                            <i class="bi bi-person-badge" style="position: absolute; left: 12px; top: 12px; color: var(--text-tertiary);"></i>
+                        <div class="input-wrapper">
+                            <input type="text" id="adminUser" value="admin" placeholder="admin" required>
+                            <i class="bi bi-person-badge"></i>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">设置密码</label>
-                        <div style="position: relative;">
-                            <input type="password" id="adminPass" placeholder="设置登录密码" style="padding-left: 36px;">
-                            <i class="bi bi-lock" style="position: absolute; left: 12px; top: 12px; color: var(--text-tertiary);"></i>
+                        <div class="input-wrapper">
+                            <input type="password" id="adminPass" placeholder="设置登录密码" required>
+                            <i class="bi bi-lock"></i>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">确认密码</label>
-                        <div style="position: relative;">
-                            <input type="password" id="adminPassConfirm" placeholder="再次输入密码" style="padding-left: 36px;">
-                            <i class="bi bi-check2-circle" style="position: absolute; left: 12px; top: 12px; color: var(--text-tertiary);"></i>
+                        <div class="input-wrapper">
+                            <input type="password" id="adminPassConfirm" placeholder="再次输入密码" required>
+                            <i class="bi bi-check2-circle"></i>
                         </div>
                     </div>
 
-                    <div style="margin-top: var(--spacing-8); display: flex; gap: var(--spacing-4);">
-                        <button type="button" class="btn-secondary" onclick="goToStep1()">
-                            <i class="bi bi-arrow-left me-2"></i> 上一步
+                    <div class="button-group">
+                        <button type="button" class="btn btn-secondary" onclick="goToStep1()">
+                            <i class="bi bi-arrow-left"></i>
+                            <span>上一步</span>
                         </button>
-                        <button type="button" class="btn-primary" style="flex: 1;" onclick="finishSetup()" id="finishBtn">
-                            完成设置并启动
+                        <button type="button" class="btn btn-primary" onclick="finishSetup()" id="finishBtn">
+                            <i class="bi bi-check-circle"></i>
+                            <span>完成设置</span>
                         </button>
                     </div>
                 </form>
@@ -232,60 +624,75 @@
             const btn = document.getElementById('testBtn');
             const nextBtn = document.getElementById('nextBtn');
             const alert = document.getElementById('statusAlert');
-            
+            const statusDiv = document.getElementById('connectionStatus');
+
             btn.disabled = true;
-            btn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px; border-width: 2px;"></span> 测试中...';
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<div class="spinner"></div><span>测试中...</span>';
             alert.style.display = 'none';
+            statusDiv.innerHTML = '<div class="connection-status status-pending"><i class="bi bi-hourglass-split"></i>连接测试中...</div>';
 
             const config = getDbConfig();
 
             try {
                 const response = await fetch('/api/setup/test-db', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(config)
                 });
                 const data = await response.json();
 
                 if (data.success) {
-                    showAlert('连接成功！请继续设置管理员账号。', 'success');
+                    showAlert('✓ 数据库连接成功！请继续设置管理员账号。', 'success');
+                    statusDiv.innerHTML = '<div class="connection-status status-verified"><i class="bi bi-check-circle"></i>连接已验证</div>';
                     isDbVerified = true;
                     nextBtn.disabled = false;
                 } else {
-                    showAlert('连接失败: ' + data.message, 'error');
+                    showAlert('✗ 连接失败: ' + data.message, 'error');
+                    statusDiv.innerHTML = '';
                     isDbVerified = false;
                     nextBtn.disabled = true;
                 }
             } catch (err) {
-                showAlert('请求失败: ' + err.message, 'error');
+                showAlert('✗ 请求失败: ' + err.message, 'error');
+                statusDiv.innerHTML = '';
             } finally {
                 btn.disabled = false;
-                btn.textContent = '测试连接';
+                btn.innerHTML = originalContent;
             }
         }
 
         function goToStep2() {
             if (!isDbVerified) return;
+
             document.getElementById('step1').classList.remove('active');
             document.getElementById('step2').classList.add('active');
-            document.getElementById('step1Dot').classList.remove('active');
-            document.getElementById('step1Dot').classList.add('completed');
-            document.getElementById('step2Dot').classList.add('active');
-            
+
+            document.getElementById('stepIndicator1').classList.remove('active');
+            document.getElementById('stepIndicator1').classList.add('completed');
+            document.getElementById('stepIndicator2').classList.add('active');
+
+            document.getElementById('progressFill').style.width = '100%';
+
             document.getElementById('headerTitle').textContent = '管理员设置';
             document.getElementById('headerDesc').textContent = '创建系统管理员账号';
+            document.getElementById('headerIcon').className = 'bi bi-person-gear';
             document.getElementById('statusAlert').style.display = 'none';
         }
 
         function goToStep1() {
             document.getElementById('step2').classList.remove('active');
             document.getElementById('step1').classList.add('active');
-            document.getElementById('step2Dot').classList.remove('active');
-            document.getElementById('step1Dot').classList.remove('completed');
-            document.getElementById('step1Dot').classList.add('active');
+
+            document.getElementById('stepIndicator2').classList.remove('active');
+            document.getElementById('stepIndicator1').classList.remove('completed');
+            document.getElementById('stepIndicator1').classList.add('active');
+
+            document.getElementById('progressFill').style.width = '0';
 
             document.getElementById('headerTitle').textContent = '系统初始化';
             document.getElementById('headerDesc').textContent = '配置数据库连接以启动系统';
+            document.getElementById('headerIcon').className = 'bi bi-rocket-takeoff';
         }
 
         async function finishSetup() {
@@ -304,7 +711,8 @@
 
             const btn = document.getElementById('finishBtn');
             btn.disabled = true;
-            btn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px; border-width: 2px;"></span> 启动中...';
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<div class="spinner"></div><span>保存配置中...</span>';
 
             const payload = {
                 database: getDbConfig(),
@@ -314,23 +722,25 @@
             try {
                 const response = await fetch('/api/setup/save', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 const data = await response.json();
 
                 if (data.success) {
-                    // Redirect to login or dashboard
-                    window.location.href = '/login'; 
+                    showAlert('✓ 配置保存成功！正在跳转到登录页...', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 1000);
                 } else {
-                    showAlert('保存失败: ' + data.message, 'error');
+                    showAlert('✗ 保存失败: ' + data.message, 'error');
                     btn.disabled = false;
-                    btn.textContent = '完成设置并启动';
+                    btn.innerHTML = originalContent;
                 }
             } catch (err) {
-                showAlert('请求失败: ' + err.message, 'error');
+                showAlert('✗ 请求失败: ' + err.message, 'error');
                 btn.disabled = false;
-                btn.textContent = '完成设置并启动';
+                btn.innerHTML = originalContent;
             }
         }
 
@@ -346,7 +756,8 @@
 
         function showAlert(msg, type) {
             const alert = document.getElementById('statusAlert');
-            alert.textContent = msg;
+            const icon = type === 'error' ? '<i class="bi bi-exclamation-circle"></i>' : '<i class="bi bi-check-circle"></i>';
+            alert.innerHTML = icon + ' ' + msg;
             alert.className = 'status-alert ' + (type === 'error' ? 'status-error' : 'status-success');
             alert.style.display = 'block';
         }
@@ -357,8 +768,10 @@
                 isDbVerified = false;
                 document.getElementById('nextBtn').disabled = true;
                 document.getElementById('statusAlert').style.display = 'none';
+                document.getElementById('connectionStatus').innerHTML = '';
             });
         });
     </script>
 </body>
+
 </html>

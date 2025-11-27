@@ -22,7 +22,7 @@ class WeChatAccount(Base):
     token = Column(String(200), nullable=False)
     cookie = Column(Text, nullable=False)
     page_size = Column(Integer, default=5)
-    days_limit = Column(Integer, default=7)
+    article_limit = Column(Integer, default=10)  # Number of recent articles to fetch
     # Filter settings (JSON encoded list for keywords)
     filter_keywords = Column(Text, nullable=True)
     filter_keyword_logic = Column(String(10), default="OR")  # OR / AND
@@ -48,7 +48,7 @@ class WeChatAccount(Base):
             "token": self.token,
             "cookie": self.cookie,
             "page_size": self.page_size,
-            "days_limit": self.days_limit,
+            "article_limit": self.article_limit,
             "filter_keywords": keywords,
             "filter_keyword_logic": self.filter_keyword_logic or "OR",
             "enabled": self.enabled,
@@ -73,7 +73,7 @@ class WeChatAccount(Base):
             token=data.get("token", ""),
             cookie=data.get("cookie", ""),
             page_size=data.get("page_size", 5),
-            days_limit=data.get("days_limit", 7),
+            article_limit=data.get("article_limit", 10),
             filter_keywords=keywords_json,
             filter_keyword_logic=data.get("filter_keyword_logic", "OR"),
             enabled=data.get("enabled", True)

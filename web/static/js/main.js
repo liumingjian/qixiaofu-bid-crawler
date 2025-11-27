@@ -310,7 +310,70 @@ async function saveConfig() {
 // --- Sources Management ---
 let accountKeywords = [];
 
-// ... loadWeChatAccounts ...
+async function loadWeChatAccounts() {
+    try {
+        const response = await fetch('/api/sources/wechat');
+        if (!response.ok) {
+            if (response.status === 401) {
+                window.location.href = '/login';
+                return;
+            }
+            throw new Error('Failed to load accounts');
+        }
+
+        const result = await response.json();
+        const accounts = result.data || [];
+
+        const tbody = document.getElementById('wechatAccountsTable');
+        if (!tbody) return;
+
+        if (accounts.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary); padding: var(--spacing-8);">暂无公众号数据，请联系管理员在配置文件中添加</td></tr>';
+            return;
+        }
+
+        // Store accounts globally for edit
+        window.wechatAccounts = accounts;
+
+        tbody.innerHTML = accounts.map((account, index) => `
+            <tr>
+                <td>${escapeHtml(account.name)}</td>
+                <td>
+                    <span class="badge ${account.enabled ? 'badge-success' : 'badge-secondary'}">
+                        ${account.enabled ? '启用' : '禁用'}
+                    </span>
+                </td>
+                <td>${account.article_limit || '-'}</td>
+                <td>
+                    <button class="btn-sm btn-primary" onclick="editAccountById(${index})">
+                        <i class="bi bi-sliders"></i> 配置规则
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+
+    } catch (error) {
+        console.error('Load accounts error:', error);
+        showToast('加载公众号列表失败', 'error');
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function editAccountById(index) {
+    const account = window.wechatAccounts[index];
+    if (account) {
+        editAccount(account);
+    }
+}
+
+function closeAccountModal() {
+    document.getElementById('accountModal').style.display = 'none';
+}
 
 function showAccountModal() {
     document.getElementById('accountModal').style.display = 'block';
@@ -324,7 +387,7 @@ function showAccountModal() {
     document.getElementById('accountDaysLimit').value = 7;
     document.getElementById('accountEnabled').checked = true;
     document.getElementById('accountModalTitle').textContent = '添加公众号';
-    
+
     // Clear account keywords
     accountKeywords = [];
     document.getElementById('accountKeywordLogic').value = 'OR';
@@ -337,17 +400,17 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function editAccount(account) {
-    showAccountModal();
-    document.getElementById('accountModalTitle').textContent = '编辑公众号';
+    document.getElementById('accountModal').style.display = 'block';
+    document.getElementById('accountModalTitle').textContent = `配置过滤规则 - ${account.name}`;
     document.getElementById('accountId').value = account.id;
     document.getElementById('accountName').value = account.name || '';
     document.getElementById('accountFakeid').value = account.fakeid || '';
     document.getElementById('accountToken').value = account.token || '';
     document.getElementById('accountCookie').value = account.cookie || '';
     document.getElementById('accountPageSize').value = account.page_size || 5;
-    document.getElementById('accountDaysLimit').value = account.days_limit !== undefined ? account.days_limit : 7;
+    document.getElementById('accountArticleLimit').value = account.article_limit !== undefined ? account.article_limit : 10;
     document.getElementById('accountEnabled').checked = account.enabled !== false;
-    
+
     // Account filters
     document.getElementById('accountKeywordLogic').value = account.filter_keyword_logic || 'OR';
     accountKeywords = account.filter_keywords || [];
@@ -362,7 +425,7 @@ async function saveAccount() {
         token: document.getElementById('accountToken').value,
         cookie: document.getElementById('accountCookie').value,
         page_size: parseInt(document.getElementById('accountPageSize').value),
-        days_limit: parseInt(document.getElementById('accountDaysLimit').value),
+        article_limit: parseInt(document.getElementById('accountArticleLimit').value),
         enabled: document.getElementById('accountEnabled').checked,
         // Filter fields
         filter_keywords: accountKeywords,

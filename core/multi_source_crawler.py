@@ -88,7 +88,7 @@ class MultiSourceCrawler:
             "token": account.get("token", ""),
             "cookie": account.get("cookie", ""),
             "page_size": account.get("page_size", 5),
-            "days_limit": account.get("days_limit", 7),
+            "article_limit": account.get("article_limit", 10),
             "filter_keywords": account.get("filter_keywords"),
             "filter_keyword_logic": account.get("filter_keyword_logic"),
         }

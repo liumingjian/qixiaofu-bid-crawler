@@ -54,15 +54,16 @@ class SougouWeChatFetcher:
             )
         )
         self.page_size = max(1, int(wechat_cfg.get("page_size", 5) or 5))
-        self.days_limit = int(wechat_cfg.get("days_limit", 7) or 0)
-        
+        self.article_limit = int(wechat_cfg.get("article_limit", 10) or 10)
+
         # New: Filtering logic
         self.keyword_logic = str(wechat_cfg.get("filter_keyword_logic", "OR")).upper()
         if self.keyword_logic not in ("AND", "OR"):
             self.keyword_logic = "OR"
 
-        self.fetch_mode: str = "recent_days" if self.days_limit > 0 else "latest_count"
-        self.fetch_rule_value: int = self.days_limit if self.days_limit > 0 else self.max_articles
+        # Simplified fetch mode - always fetch by count
+        self.fetch_mode: str = "latest_count"
+        self.fetch_rule_value: int = self.article_limit
         self._configure_fetch_rule(wechat_cfg.get("fetch_rule", {}))
         
         # Overrides from constructor config (e.g. from multi_source_crawler passing account details)
@@ -105,7 +106,8 @@ class SougouWeChatFetcher:
 
     def fetch_article_list(self, max_articles: Optional[int] = None) -> List[ArticleData]:
         """
-        Return article metadata filtered by keywords and recency.
+        Return article metadata filtered by keywords.
+        Fetches the most recent N articles (after keyword filtering).
         """
         limit = self._resolve_limit(max_articles)
         if limit <= 0:
@@ -117,17 +119,14 @@ class SougouWeChatFetcher:
 
         articles: List[ArticleData] = []
         begin = 0
-        cutoff = self._cutoff_timestamp()
-        exhausted = False
 
         self.logger.info(
-            "Fetching articles via WeChat API. account=%s max=%d cutoff=%s",
+            "Fetching articles via WeChat API. account=%s max=%d",
             self.account_name or self.fakeid,
             limit,
-            cutoff,
         )
 
-        while len(articles) < limit and not exhausted:
+        while len(articles) < limit:
             payload = self._request_with_retry(begin)
             if not payload:
                 break
@@ -137,11 +136,7 @@ class SougouWeChatFetcher:
                 break
 
             for item in items:
-                create_time = item.get("create_time")
-                if cutoff and create_time and create_time < cutoff:
-                    exhausted = True
-                    break
-
+                # Check keyword filter
                 if not self._match_keywords(item.get("title", "")):
                     continue
 
@@ -159,28 +154,21 @@ class SougouWeChatFetcher:
         return articles[:limit]
 
     def _configure_fetch_rule(self, rule_cfg: Mapping[str, Any] | None) -> None:
+        """Configure fetch rule - now only supports article count."""
         if not rule_cfg:
             return
         mode = str(rule_cfg.get("mode", "")).strip().lower()
         value = int(rule_cfg.get("value", 0) or 0)
-        if mode not in {"recent_days", "latest_count"} or value <= 0:
-            return
-        self.fetch_mode = mode
-        self.fetch_rule_value = value
-        if mode == "recent_days":
-            self.days_limit = value
-        else:
-            self.max_articles = value
-            # 若未设置天数限制，确保按需取消时间过滤
-            if self.days_limit and self.days_limit > 0 and rule_cfg.get("reset_days_limit", True):
-                self.days_limit = 0
+        # Only support latest_count mode now
+        if mode == "latest_count" and value > 0:
+            self.fetch_mode = mode
+            self.fetch_rule_value = value
+            self.article_limit = value
 
     def _resolve_limit(self, override: Optional[int]) -> int:
         if override and override > 0:
             return override
-        if self.fetch_mode == "latest_count" and self.fetch_rule_value > 0:
-            return self.fetch_rule_value
-        return self.max_articles
+        return self.article_limit
 
     def _request_with_retry(self, begin: int) -> Optional[Mapping[str, Any]]:
         for attempt in range(1, self.retry_count + 1):
@@ -276,11 +264,6 @@ class SougouWeChatFetcher:
         
         # Default OR: Any keyword matches
         return any(keyword in normalized for keyword in self.keyword_filters)
-
-    def _cutoff_timestamp(self) -> Optional[int]:
-        if self.days_limit <= 0:
-            return None
-        return int(time.time() - self.days_limit * 86400)
 
     def _random_delay(self) -> None:
         start, end = self.request_interval_range
