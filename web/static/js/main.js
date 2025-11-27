@@ -1,397 +1,607 @@
-let currentStatus = 'all';
+/**
+ * Main application logic
+ * Handles UI interactions, API calls, and state management.
+ */
+
+// --- Global State ---
+let currentBids = [];
 let statusPolling = null;
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadBids();
-    loadStats();
-});
+// --- API Helpers ---
 
-function handleResponse(response) {
-    if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+async function apiCall(url, options = {}) {
+    try {
+        const response = await fetch(url, options);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const payload = await response.json();
+        return payload;
+    } catch (error) {
+        showToast(`请求失败: ${error.message}`, 'error');
+        throw error;
     }
-    return response.json();
 }
 
-function loadBids(status = 'all') {
-    currentStatus = status;
-    const container = document.getElementById('bidsContainer');
-    container.innerHTML = `
-        <div class="text-center text-muted py-4">
-            <div class="spinner-border text-primary mb-2" role="status"></div>
-            <p class="mb-0">正在加载数据...</p>
-        </div>
-    `;
-    const emptyState = document.getElementById('emptyState');
-    emptyState.classList.add('d-none');
+// --- Dashboard Functions ---
 
-    const url = status === 'all' ? '/api/bids' : `/api/bids?status=${status}`;
-    fetch(url)
-        .then(handleResponse)
-        .then((payload) => {
-            if (!payload.success) {
-                throw new Error(payload.error || '未知错误');
+async function loadDashboardStats() {
+    try {
+        const payload = await apiCall('/api/stats');
+        if (payload.success) {
+            const stats = payload.data;
+            updateText('todayBids', stats.new_bids || 0);
+            updateText('totalBids', stats.total_bids || 0);
+            updateText('activeSources', stats.active_sources || 0); // Need backend support
+            // Update active sources count manually if backend doesn't support
+            if (stats.active_sources === undefined) {
+                 fetch('/api/sources/wechat').then(r=>r.json()).then(d => {
+                     const active = (d.data || []).filter(a => a.enabled).length;
+                     updateText('activeSources', active);
+                 });
             }
-            renderBids(payload.data || []);
-        })
-        .catch((err) => showError(`加载失败：${err.message}`));
+        }
+        
+        // Load recent bids for dashboard
+        loadRecentBids();
+    } catch (error) {
+        console.error('Failed to load stats:', error);
+    }
 }
 
-function renderBids(bids) {
-    const container = document.getElementById('bidsContainer');
+async function loadRecentBids() {
+    const tbody = document.getElementById('recentBidsTableBody');
+    if (!tbody) return;
+
+    try {
+        const payload = await apiCall('/api/bids?limit=5'); // Need backend support for limit
+        // Fallback if limit not supported: slice client side
+        let bids = payload.data || [];
+        // Sort by doc_time desc (assuming backend doesn't) - actually backend might, but let's ensure
+        bids = bids.slice(0, 5);
+
+        if (bids.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center text-secondary">暂无数据</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = bids.map(bid => `
+            <tr onclick="openDrawer('${bid.id}')">
+                <td>
+                    <div style="font-weight: 500;">${truncate(bid.project_name, 20)}</div>
+                    <div style="font-size: 12px; color: var(--text-tertiary);">${bid.purchaser || '未知采购人'}</div>
+                </td>
+                <td style="color: var(--warning-color); font-weight: 500;">${bid.budget || '-'}</td>
+                <td>${renderStatusBadge(bid.status)}</td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">加载失败</td></tr>';
+    }
+}
+
+// --- Bidding Hall Functions ---
+
+async function loadBids() {
+    const tbody = document.getElementById('bidsTableBody');
     const emptyState = document.getElementById('emptyState');
-    if (!bids.length) {
-        container.innerHTML = '';
-        emptyState.classList.remove('d-none');
+    const loadingState = document.getElementById('loadingState');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+    if (loadingState) loadingState.style.display = 'block';
+    if (emptyState) emptyState.style.display = 'none';
+
+    try {
+        const statusFilter = document.getElementById('statusFilter').value;
+        const searchInput = document.getElementById('searchInput').value.toLowerCase();
+        
+        let url = '/api/bids';
+        if (statusFilter !== 'all') {
+            url += `?status=${statusFilter}`;
+        }
+        
+        const payload = await apiCall(url);
+        let bids = payload.data || [];
+
+        // Client-side search filtering (since backend search isn't fully implemented yet)
+        if (searchInput) {
+            bids = bids.filter(bid => 
+                (bid.project_name && bid.project_name.toLowerCase().includes(searchInput)) ||
+                (bid.purchaser && bid.purchaser.toLowerCase().includes(searchInput))
+            );
+        }
+
+        if (loadingState) loadingState.style.display = 'none';
+
+        if (bids.length === 0) {
+            if (emptyState) emptyState.style.display = 'block';
+            return;
+        }
+
+        tbody.innerHTML = bids.map(bid => `
+            <tr onclick="openDrawer('${bid.id}')">
+                <td style="font-size: 13px; color: var(--text-secondary);">${bid.doc_time || '-'}</td>
+                <td>
+                    <div style="font-weight: 500; color: var(--primary-color);">${bid.project_name}</div>
+                </td>
+                <td style="color: var(--warning-color); font-weight: 600;">${bid.budget || '-'}</td>
+                <td>${bid.purchaser || '-'}</td>
+                <td>${renderStatusBadge(bid.status)}</td>
+                <td>
+                     <button class="btn-secondary" style="height: 28px; padding: 0 8px; font-size: 12px;" onclick="event.stopPropagation(); window.open('${bid.source_url}', '_blank')">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+        
+        // Save to global for drawer access
+        currentBids = bids;
+
+    } catch (error) {
+        if (loadingState) loadingState.style.display = 'none';
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">加载失败: ${error.message}</td></tr>`;
+    }
+}
+
+// --- Drawer Functions ---
+
+function openDrawer(bidId) {
+    const drawer = document.getElementById('detailDrawer');
+    const content = document.getElementById('drawerContent');
+    const drawerTitle = document.getElementById('drawerTitle');
+    
+    // Find bid data
+    // If not in currentBids (e.g. from dashboard), fetch it or find it
+    // For simplicity, we assume we might need to fetch single bid if not found,
+    // but for now let's rely on current list or a simple fetch if needed.
+    // Since we don't have get-by-id API, we iterate.
+    let bid = currentBids.find(b => b.id === bidId);
+    
+    // If not found in current list (dashboard case), we might need to fetch all or find a way.
+    // For MVP dashboard, we probably should store the small list in a separate variable or merge.
+    // Let's make dashboard store its bids in currentBids too for now? No, that messes up Hall.
+    // Let's just fetch all for now or show loading.
+    
+    if (!bid) {
+        // Fallback: This is a bit inefficient but works for MVP without ID endpoint
+        // Or we could attach data to the row.
+        // Let's just fetch all for now or show loading.
+        content.innerHTML = '<div class="loading-spinner"></div>';
+        drawer.classList.add('open');
+        
+        // Quick fix: Fetch all bids to find the one.
+        apiCall('/api/bids').then(payload => {
+            bid = (payload.data || []).find(b => b.id === bidId);
+            if (bid) renderDrawerContent(bid);
+            else content.innerHTML = '<div class="text-danger">未找到数据</div>';
+        });
         return;
     }
 
-    emptyState.classList.add('d-none');
-    container.innerHTML = bids
-        .map(
-            (bid) => `
-        <div class="bid-card">
-            <div class="d-flex justify-content-between align-items-start mb-2">
-                <div class="bid-title">${bid.project_name || '未命名项目'}</div>
-                <span class="status-badge status-${bid.status || 'new'}">${getStatusText(bid.status)}</span>
-            </div>
-            ${renderField('预算金额', bid.budget)}
-            ${renderField('采购人', bid.purchaser)}
-            ${renderField('获取文件时间', bid.doc_time)}
-            ${bid.project_number ? renderField('项目编号', bid.project_number) : ''}
-            ${bid.service_period ? renderField('服务期限', bid.service_period) : ''}
-            <div class="mt-3">
-                <a href="${bid.source_url || '#'}" target="_blank" class="btn btn-primary btn-sm">查看原文</a>
+    renderDrawerContent(bid);
+    drawer.classList.add('open');
+}
+
+function renderDrawerContent(bid) {
+    const content = document.getElementById('drawerContent');
+    content.innerHTML = `
+        <div style="margin-bottom: var(--spacing-6);">
+            <div style="font-size: 18px; font-weight: 600; margin-bottom: var(--spacing-4); line-height: 1.4;">${bid.project_name}</div>
+            <div style="display: flex; gap: var(--spacing-2);">
+                ${renderStatusBadge(bid.status)}
+                <span class="badge badge-neutral">${bid.source_title ? '公众号' : '未知来源'}</span>
             </div>
         </div>
-    `
-        )
-        .join('');
+
+        <div class="card" style="margin-bottom: var(--spacing-6); background: var(--bg-secondary); border: none;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-4);">
+                <div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">预算金额</div>
+                    <div style="font-size: 16px; font-weight: 600; color: var(--warning-color);">${bid.budget || '-'}</div>
+                </div>
+                <div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">发布时间</div>
+                    <div style="font-size: 16px;">${bid.doc_time || '-'}</div>
+                </div>
+                <div style="grid-column: span 2;">
+                    <div style="font-size: 12px; color: var(--text-secondary);">采购人</div>
+                    <div style="font-size: 16px;">${bid.purchaser || '-'}</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-bottom: var(--spacing-6);">
+            <h4 style="font-size: 14px; font-weight: 600; margin-bottom: var(--spacing-2);">详细内容</h4>
+            <div style="background: var(--bg-tertiary); padding: var(--spacing-4); border-radius: var(--radius-sm); white-space: pre-wrap; font-size: 13px; line-height: 1.6; color: var(--text-primary);">${bid.content || '无详细内容'}</div>
+        </div>
+        
+         <div style="margin-bottom: var(--spacing-6);">
+            <h4 style="font-size: 14px; font-weight: 600; margin-bottom: var(--spacing-2);">原文信息</h4>
+             <div style="font-size: 13px; margin-bottom: 4px;">来源文章: ${bid.source_title || '-'}</div>
+            <a href="${bid.source_url}" target="_blank" class="btn-primary" style="width: 100%;">
+                <i class="bi bi-box-arrow-up-right" style="margin-right: 8px;"></i> 查看原文
+            </a>
+        </div>
+    `;
 }
 
-function renderField(label, value) {
-    return `
-    <div class="bid-field">
-        <span class="field-label">${label}：</span>
-        <span class="field-value">${value || '-'}</span>
-    </div>`;
+function closeDrawer() {
+    document.getElementById('detailDrawer').classList.remove('open');
 }
 
-function filterBids(status, evt) {
-    if (evt) {
-        evt.preventDefault();
-    }
-    document.querySelectorAll('#statusTabs .nav-link').forEach((link) => link.classList.remove('active'));
-    if (evt?.target) {
-        evt.target.classList.add('active');
-    }
-    loadBids(status);
-}
+// --- Settings Functions ---
 
-function getStatusText(status) {
-    switch (status) {
-        case 'new':
-            return '新发现';
-        case 'notified':
-            return '已通知';
-        case 'archived':
-            return '已归档';
-        default:
-            return '未知';
-    }
-}
+let globalKeywords = [];
 
-function startCrawl() {
-    const button = document.getElementById('crawlBtn');
-    const buttonText = document.getElementById('crawlBtnText');
-    button.disabled = true;
-    buttonText.textContent = '正在爬取...';
-    showStatus('正在启动爬取任务...');
-
-    fetch('/api/crawl/start', { method: 'POST' })
-        .then(handleResponse)
-        .then((payload) => {
-            if (!payload.success) {
-                throw new Error(payload.message || '任务启动失败');
-            }
-            showStatus('爬取任务已启动');
-            beginStatusPolling();
-        })
-        .catch((err) => {
-            showError(err.message);
-            button.disabled = false;
-            buttonText.textContent = '开始爬取';
-        });
-}
-
-function beginStatusPolling() {
-    if (statusPolling) {
-        clearInterval(statusPolling);
-    }
-    statusPolling = setInterval(() => {
-        fetch('/api/crawl/status')
-            .then(handleResponse)
-            .then((payload) => {
-                if (!payload.success) {
-                    throw new Error(payload.error || '状态查询失败');
-                }
-                const data = payload.data || {};
-                const message = data.message || '执行中...';
-                showStatus(message, data.last_error ? 'danger' : 'info');
-                if (!data.is_running) {
-                    clearInterval(statusPolling);
-                    statusPolling = null;
-                    document.getElementById('crawlBtn').disabled = false;
-                    document.getElementById('crawlBtnText').textContent = '开始爬取';
-                    loadBids(currentStatus);
-                    loadStats();
-                }
-            })
-            .catch((err) => {
-                clearInterval(statusPolling);
-                statusPolling = null;
-                showError(`状态查询失败：${err.message}`);
+async function loadConfig() {
+    try {
+        const payload = await apiCall('/api/config');
+        if (payload.success) {
+            const config = payload.data;
+            // Email
+            const recipients = (config.email && config.email.recipient_emails) || [];
+            document.getElementById('configRecipients').value = recipients.join('\n');
+            // Scheduler
+            const scheduler = config.scheduler || {};
+            document.getElementById('configSchedulerEnabled').checked = scheduler.enabled || false;
+            document.getElementById('configCron').value = scheduler.cron || '';
+            
+            // Filter
+            const wechat = config.wechat || {};
+            document.getElementById('configDaysLimit').value = wechat.days_limit || 7;
+            document.getElementById('configKeywordLogic').value = wechat.filter_keyword_logic || 'OR';
+            
+            // Handle global keywords
+            // Check legacy keyword_filters first if filter_keywords missing
+            globalKeywords = wechat.filter_keywords || wechat.keyword_filters || [];
+            renderKeywords('keywordsContainer', globalKeywords, (newKw) => {
+                globalKeywords = newKw;
             });
-    }, 2000);
+        }
+    } catch (error) {
+        console.error(error);
+    }
 }
 
-function loadStats() {
-    fetch('/api/stats')
-        .then(handleResponse)
-        .then((payload) => {
-            if (!payload.success) {
-                throw new Error(payload.error || '统计数据获取失败');
-            }
-            renderStats(payload.data || {});
-        })
-        .catch(() => {
-            // 忽略统计错误，避免打扰用户
-        });
-}
+// Init global keyword input
+document.addEventListener('DOMContentLoaded', () => {
+    initKeywordInput('newKeywordInput', 'keywordsContainer', () => globalKeywords, (nk) => globalKeywords = nk);
+});
 
-function renderStats(stats) {
-    document.getElementById('statTotalBids').textContent = stats.total_bids ?? 0;
-    document.getElementById('statNewBids').textContent = stats.new_bids ?? 0;
-    document.getElementById('statTotalArticles').textContent = stats.total_articles ?? 0;
-    document.getElementById('statNotifiedBids').textContent = stats.notified_bids ?? 0;
-}
+async function saveConfig() {
+    const recipients = document.getElementById('configRecipients').value.trim().split('\n').filter(r => r.trim());
+    const schedulerEnabled = document.getElementById('configSchedulerEnabled').checked;
+    const cron = document.getElementById('configCron').value.trim();
+    
+    // Filter
+    const daysLimit = parseInt(document.getElementById('configDaysLimit').value) || 0;
+    const keywordLogic = document.getElementById('configKeywordLogic').value;
 
-function showStatus(message, level = 'info') {
-    const statusBar = document.getElementById('statusBar');
-    const statusMessage = document.getElementById('statusMessage');
-    statusBar.classList.remove('d-none', 'alert-info', 'alert-danger');
-    statusBar.classList.add(level === 'danger' ? 'alert-danger' : 'alert-info');
-    statusMessage.textContent = message;
-}
-
-function showError(message) {
-    showStatus(message, 'danger');
-}
-
-// Configuration management
-function loadConfig() {
-    fetch('/api/config')
-        .then(handleResponse)
-        .then((payload) => {
-            if (!payload.success) {
-                throw new Error(payload.message || '配置加载失败');
-            }
-            populateConfigForm(payload.data || {});
-        })
-        .catch((err) => {
-            showError(`配置加载失败：${err.message}`);
-        });
-}
-
-function populateConfigForm(config) {
-    // Email
-    const email = config.email || {};
-    const recipients = email.recipient_emails || [];
-    document.getElementById('configRecipients').value = recipients.join('\n');
-
-    // Scheduler
-    const scheduler = config.scheduler || {};
-    document.getElementById('configSchedulerEnabled').checked = scheduler.enabled || false;
-    document.getElementById('configCron').value = scheduler.cron || '';
-}
-
-function saveConfig() {
     const config = {
-        email: {
-            recipient_emails: document.getElementById('configRecipients').value
-                .split('\n')
-                .map(e => e.trim())
-                .filter(e => e.length > 0)
-        },
-        scheduler: {
-            enabled: document.getElementById('configSchedulerEnabled').checked,
-            cron: document.getElementById('configCron').value.trim()
+        email: { recipient_emails: recipients },
+        scheduler: { enabled: schedulerEnabled, cron: cron },
+        wechat: {
+            days_limit: daysLimit,
+            filter_keyword_logic: keywordLogic,
+            keyword_filters: globalKeywords, // backward compat
+            filter_keywords: globalKeywords  // new standard
         }
     };
 
-    fetch('/api/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config)
-    })
-        .then(handleResponse)
-        .then((payload) => {
-            if (!payload.success) {
-                throw new Error(payload.message || '保存失败');
-            }
-            showStatus(payload.message || '配置已保存', 'success');
-            // Close modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('configModal'));
-            if (modal) modal.hide();
-        })
-        .catch((err) => {
-            showError(`保存失败：${err.message}`);
-        });
+    try {
+        const payload = await fetch('/api/config', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(config)
+        }).then(r => r.json());
+
+        if (payload.success) {
+            showToast('配置已保存', 'success');
+        } else {
+            showToast(payload.message, 'error');
+        }
+    } catch (error) {
+        showToast('保存失败: ' + error.message, 'error');
+    }
 }
 
-// Load config when modal opens
+// --- Sources Management ---
+let accountKeywords = [];
+
+// ... loadWeChatAccounts ...
+
+function showAccountModal() {
+    document.getElementById('accountModal').style.display = 'block';
+    // Clear form
+    document.getElementById('accountId').value = '';
+    document.getElementById('accountName').value = '';
+    document.getElementById('accountFakeid').value = '';
+    document.getElementById('accountToken').value = '';
+    document.getElementById('accountCookie').value = '';
+    document.getElementById('accountPageSize').value = 5;
+    document.getElementById('accountDaysLimit').value = 7;
+    document.getElementById('accountEnabled').checked = true;
+    document.getElementById('accountModalTitle').textContent = '添加公众号';
+    
+    // Clear account keywords
+    accountKeywords = [];
+    document.getElementById('accountKeywordLogic').value = 'OR';
+    renderKeywords('accountKeywordsContainer', accountKeywords, (nk) => accountKeywords = nk);
+}
+
+// Init account keyword input
 document.addEventListener('DOMContentLoaded', () => {
-    const configModal = document.getElementById('configModal');
-    if (configModal) {
-        configModal.addEventListener('show.bs.modal', () => {
-            loadConfig();
-            loadWeChatAccounts(); // Load accounts when config modal opens
-        });
-    }
+    initKeywordInput('accountKeywordInput', 'accountKeywordsContainer', () => accountKeywords, (nk) => accountKeywords = nk);
 });
 
-// WeChat Account Management
-function loadWeChatAccounts() {
-    fetch('/api/sources/wechat')
-        .then(handleResponse)
-        .then((payload) => {
-            if (!payload.success) {
-                throw new Error(payload.message || '加载失败');
-            }
-            renderWeChatAccounts(payload.data || []);
-        })
-        .catch((err) => {
-            document.getElementById('wechatAccountsTable').innerHTML =
-                `<tr><td colspan="5" class="text-center text-danger">加载失败: ${err.message}</td></tr>`;
-        });
+function editAccount(account) {
+    showAccountModal();
+    document.getElementById('accountModalTitle').textContent = '编辑公众号';
+    document.getElementById('accountId').value = account.id;
+    document.getElementById('accountName').value = account.name || '';
+    document.getElementById('accountFakeid').value = account.fakeid || '';
+    document.getElementById('accountToken').value = account.token || '';
+    document.getElementById('accountCookie').value = account.cookie || '';
+    document.getElementById('accountPageSize').value = account.page_size || 5;
+    document.getElementById('accountDaysLimit').value = account.days_limit !== undefined ? account.days_limit : 7;
+    document.getElementById('accountEnabled').checked = account.enabled !== false;
+    
+    // Account filters
+    document.getElementById('accountKeywordLogic').value = account.filter_keyword_logic || 'OR';
+    accountKeywords = account.filter_keywords || [];
+    renderKeywords('accountKeywordsContainer', accountKeywords, (nk) => accountKeywords = nk);
 }
 
-function renderWeChatAccounts(accounts) {
-    const tbody = document.getElementById('wechatAccountsTable');
-    if (!accounts.length) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">暂无账号</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = accounts.map(account => `
-        <tr>
-            <td>${account.name || '-'}</td>
-            <td><span class="badge ${account.enabled ? 'bg-success' : 'bg-secondary'}">${account.enabled ? '启用' : '禁用'}</span></td>
-            <td>${account.page_size || 5}</td>
-            <td>${account.days_limit || 7}</td>
-            <td>
-                <button class="btn btn-sm btn-outline-primary" onclick="editAccount('${account.id}')">编辑</button>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteAccount('${account.id}')">删除</button>
-            </td>
-        </tr>
-    `).join('');
-}
-
-function showAccountModal(account = null) {
-    const modal = new bootstrap.Modal(document.getElementById('accountModal'));
-    const title = document.getElementById('accountModalTitle');
-
-    if (account) {
-        title.textContent = '编辑公众号';
-        document.getElementById('accountId').value = account.id;
-        document.getElementById('accountName').value = account.name || '';
-        document.getElementById('accountFakeid').value = account.fakeid || '';
-        document.getElementById('accountToken').value = account.token || '';
-        document.getElementById('accountCookie').value = account.cookie || '';
-        document.getElementById('accountPageSize').value = account.page_size || 5;
-        document.getElementById('accountDaysLimit').value = account.days_limit || 7;
-        document.getElementById('accountEnabled').checked = account.enabled !== false;
-    } else {
-        title.textContent = '添加公众号';
-        document.getElementById('accountId').value = '';
-        document.getElementById('accountName').value = '';
-        document.getElementById('accountFakeid').value = '';
-        document.getElementById('accountToken').value = '';
-        document.getElementById('accountCookie').value = '';
-        document.getElementById('accountPageSize').value = 5;
-        document.getElementById('accountDaysLimit').value = 7;
-        document.getElementById('accountEnabled').checked = true;
-    }
-
-    modal.show();
-}
-
-function editAccount(accountId) {
-    fetch('/api/sources/wechat')
-        .then(handleResponse)
-        .then((payload) => {
-            const account = (payload.data || []).find(a => a.id === accountId);
-            if (account) {
-                showAccountModal(account);
-            }
-        })
-        .catch((err) => showError(`加载账号失败: ${err.message}`));
-}
-
-function saveAccount() {
-    const accountId = document.getElementById('accountId').value;
-    const account = {
-        name: document.getElementById('accountName').value.trim(),
-        fakeid: document.getElementById('accountFakeid').value.trim(),
-        token: document.getElementById('accountToken').value.trim(),
-        cookie: document.getElementById('accountCookie').value.trim(),
-        page_size: parseInt(document.getElementById('accountPageSize').value) || 5,
-        days_limit: parseInt(document.getElementById('accountDaysLimit').value) || 7,
-        enabled: document.getElementById('accountEnabled').checked
+async function saveAccount() {
+    const id = document.getElementById('accountId').value;
+    const data = {
+        name: document.getElementById('accountName').value,
+        fakeid: document.getElementById('accountFakeid').value,
+        token: document.getElementById('accountToken').value,
+        cookie: document.getElementById('accountCookie').value,
+        page_size: parseInt(document.getElementById('accountPageSize').value),
+        days_limit: parseInt(document.getElementById('accountDaysLimit').value),
+        enabled: document.getElementById('accountEnabled').checked,
+        // Filter fields
+        filter_keywords: accountKeywords,
+        filter_keyword_logic: document.getElementById('accountKeywordLogic').value
     };
 
-    if (!account.name) {
-        showError('账号名称不能为空');
+    if (!data.name) {
+        showToast('请输入账号名称', 'error');
         return;
     }
 
-    const url = accountId ? `/api/sources/wechat/${accountId}` : '/api/sources/wechat';
-    const method = accountId ? 'PUT' : 'POST';
+    try {
+        const url = id ? `/api/sources/wechat/${id}` : '/api/sources/wechat';
+        const method = id ? 'PUT' : 'POST';
+        
+        await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        }).then(async r => {
+            const res = await r.json();
+            if(!res.success) throw new Error(res.message);
+        });
 
-    fetch(url, {
-        method: method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(account)
-    })
-        .then(handleResponse)
-        .then((payload) => {
-            if (!payload.success) {
-                throw new Error(payload.message || '保存失败');
-            }
-            showStatus('账号已保存', 'success');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('accountModal'));
-            if (modal) modal.hide();
-            loadWeChatAccounts();
-        })
-        .catch((err) => showError(`保存失败: ${err.message}`));
+        showToast('保存成功', 'success');
+        closeAccountModal();
+        loadWeChatAccounts();
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
 }
 
-function deleteAccount(accountId) {
-    if (!confirm('确定要删除此账号吗？')) {
+// --- Tag Input Helpers ---
+
+function initKeywordInput(inputId, containerId, getKeywords, setKeywords) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const val = input.value.trim();
+            if (val) {
+                const current = getKeywords();
+                if (!current.includes(val)) {
+                    const next = [...current, val];
+                    setKeywords(next);
+                    renderKeywords(containerId, next, setKeywords);
+                }
+                input.value = '';
+            }
+        }
+    });
+}
+
+function renderKeywords(containerId, keywords, setKeywords) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    container.innerHTML = keywords.map((kw, index) => `
+        <div class="badge badge-info" style="font-size: 13px; display: flex; align-items: center; gap: 4px; padding: 6px 10px;">
+            ${kw}
+            <i class="bi bi-x" style="cursor: pointer; font-size: 16px;" data-index="${index}"></i>
+        </div>
+    `).join('');
+    
+    // Bind remove events
+    container.querySelectorAll('.bi-x').forEach(icon => {
+        icon.addEventListener('click', (e) => {
+            const idx = parseInt(e.target.dataset.index);
+            const current = keywords.filter((_, i) => i !== idx);
+            setKeywords(current);
+            renderKeywords(containerId, current, setKeywords);
+        });
+    });
+}
+
+
+async function resetSystemData() {
+    if (!confirm('确定要清空所有历史数据吗？此操作不可恢复！')) {
+        return;
+    }
+    
+    // Double confirmation
+    if (!confirm('再次确认：这将删除所有已爬取的文章和招标记录。继续吗？')) {
         return;
     }
 
-    fetch(`/api/sources/wechat/${accountId}`, {
-        method: 'DELETE'
-    })
-        .then(handleResponse)
-        .then((payload) => {
-            if (!payload.success) {
-                throw new Error(payload.message || '删除失败');
-            }
-            showStatus('账号已删除', 'success');
-            loadWeChatAccounts();
-        })
-        .catch((err) => showError(`删除失败: ${err.message}`));
+    try {
+        const payload = await apiCall('/api/admin/reset', { method: 'POST' });
+        if (payload.success) {
+            showToast('数据已清空', 'success');
+        } else {
+            showToast(payload.message, 'error');
+        }
+    } catch (error) {
+        showToast('操作失败: ' + error.message, 'error');
+    }
 }
 
+// --- Crawl Control ---
+
+async function startCrawl() {
+    const btn = document.getElementById('crawlBtn');
+    const btnText = document.getElementById('crawlBtnText');
+    
+    if (btn.disabled) return;
+    
+    btn.disabled = true;
+    btnText.textContent = '准备中...';
+    
+    try {
+        const payload = await apiCall('/api/crawl/start', { method: 'POST' });
+        if (payload.success) {
+            showToast('爬取任务已启动', 'success');
+            pollStatus();
+        } else {
+            showToast(payload.message, 'error');
+            btn.disabled = false;
+            btnText.textContent = '立即抓取';
+        }
+    } catch (error) {
+        btn.disabled = false;
+        btnText.textContent = '立即抓取';
+    }
+}
+
+function pollStatus() {
+    if (statusPolling) clearInterval(statusPolling);
+    
+    const btn = document.getElementById('crawlBtn');
+    const btnText = document.getElementById('crawlBtnText');
+
+    statusPolling = setInterval(async () => {
+        try {
+            const payload = await apiCall('/api/crawl/status');
+            const status = payload.data;
+            
+            if (status.is_running) {
+                btn.disabled = true;
+                btnText.textContent = status.message || '运行中...';
+            } else {
+                clearInterval(statusPolling);
+                statusPolling = null;
+                btn.disabled = false;
+                btnText.textContent = '立即抓取';
+                showToast('爬取任务完成', 'success');
+                // Refresh data if on relevant pages
+                loadBids(); 
+                loadDashboardStats();
+            }
+        } catch (error) {
+            clearInterval(statusPolling);
+            statusPolling = null;
+            btn.disabled = false;
+            btnText.textContent = '立即抓取';
+        }
+    }, 2000);
+}
+
+// --- Utils ---
+
+function updateText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+}
+
+function renderStatusBadge(status) {
+    const map = {
+        'new': { text: '新发现', class: 'badge-success' },
+        'notified': { text: '已通知', class: 'badge-info' },
+        'archived': { text: '已归档', class: 'badge-neutral' }
+    };
+    const s = map[status] || { text: status, class: 'badge-neutral' };
+    return `<span class="badge ${s.class}">${s.text}</span>`;
+}
+
+function truncate(str, len) {
+    if (!str) return '';
+    return str.length > len ? str.substring(0, len) + '...' : str;
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    
+    const toast = document.createElement('div');
+    const color = type === 'error' ? 'var(--danger-color)' : type === 'success' ? 'var(--success-color)' : 'var(--primary-color)';
+    const bg = type === 'error' ? '#fef2f2' : type === 'success' ? '#ecfdf5' : '#eff6ff';
+    
+    toast.style.cssText = `
+        background: ${bg};
+        color: var(--text-primary);
+        padding: 12px 24px;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-lg);
+        margin-bottom: 12px;
+        border-left: 4px solid ${color};
+        display: flex;
+        align-items: center;
+        animation: slideIn 0.3s ease;
+        min-width: 300px;
+    `;
+    
+    toast.innerHTML = `
+        <i class="bi ${type === 'error' ? 'bi-exclamation-circle' : 'bi-check-circle'}" style="color: ${color}; margin-right: 8px;"></i>
+        <span>${message}</span>
+    `;
+    
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease forwards';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// Add animations styles if not present
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
+    }
+`;
+document.head.appendChild(style);

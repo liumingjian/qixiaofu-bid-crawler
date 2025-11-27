@@ -238,6 +238,34 @@ class DataManager:
                 stats["archived_bids"] += 1
         return stats
 
+    def reset_data(self) -> bool:
+        """Clear all article and bid data from storage (DB or file)."""
+        if self.use_db:
+            session = self._session()
+            try:
+                # Delete bids first due to foreign key constraints if any (though currently loose)
+                session.query(BidRecord).delete()
+                session.query(ArticleRecord).delete()
+                session.commit()
+                self.logger.warning("All data cleared from database.")
+                return True
+            except Exception as exc:
+                session.rollback()
+                self.logger.error("Failed to clear database: %s", exc)
+                return False
+            finally:
+                session.close()
+
+        # File mode
+        try:
+            self.storage.save_json(self.articles_file, [])
+            self.storage.save_json(self.bids_file, [])
+            self.logger.warning("All data cleared from JSON files.")
+            return True
+        except Exception as exc:
+            self.logger.error("Failed to clear JSON files: %s", exc)
+            return False
+
     @staticmethod
     def _with_defaults(bid: Mapping[str, Any]) -> Dict[str, Any]:
         record = dict(bid)

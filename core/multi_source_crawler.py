@@ -89,6 +89,8 @@ class MultiSourceCrawler:
             "cookie": account.get("cookie", ""),
             "page_size": account.get("page_size", 5),
             "days_limit": account.get("days_limit", 7),
+            "filter_keywords": account.get("filter_keywords"),
+            "filter_keyword_logic": account.get("filter_keyword_logic"),
         }
         
         fetcher = SougouWeChatFetcher(

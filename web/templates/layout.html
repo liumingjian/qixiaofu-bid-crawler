@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}图腾数安招标汇总{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <span>图腾数安招标汇总</span>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/dashboard" class="nav-item {% if request.path == '/dashboard' %}active{% endif %}">
+                <i class="bi bi-speedometer2"></i>
+                <span>仪表盘</span>
+            </a>
+            <a href="/bidding-hall" class="nav-item {% if request.path == '/bidding-hall' %}active{% endif %}">
+                <i class="bi bi-list-columns-reverse"></i>
+                <span>招标大厅</span>
+            </a>
+            <a href="/sources" class="nav-item {% if request.path == '/sources' %}active{% endif %}">
+                <i class="bi bi-database"></i>
+                <span>资源管理</span>
+            </a>
+            <a href="/settings" class="nav-item {% if request.path == '/settings' %}active{% endif %}">
+                <i class="bi bi-gear"></i>
+                <span>系统配置</span>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+        <!-- 顶部栏 -->
+        <header class="top-bar">
+            <div class="top-bar-left">
+                <h2 class="page-title">{% block page_title %}{% endblock %}</h2>
+            </div>
+            <div class="top-bar-right" style="display: flex; align-items: center; gap: 12px;">
+                <button id="crawlBtn" class="btn-primary" onclick="startCrawl()">
+                    <i class="bi bi-cloud-download me-2" style="margin-right: 8px;"></i>
+                    <span id="crawlBtnText">立即抓取</span>
+                </button>
+                
+                <div class="dropdown" style="position: relative;">
+                    <button class="btn-secondary" onclick="toggleUserMenu()" style="border: none; background: transparent; padding: 0 8px;">
+                        <i class="bi bi-person-circle" style="font-size: 24px;"></i>
+                    </button>
+                    <div id="userMenu" class="dropdown-menu" style="position: absolute; right: 0; top: 100%; width: 160px; background: white; border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); display: none; padding: 4px 0;">
+                        <div style="padding: 8px 16px; border-bottom: 1px solid var(--border-color); font-weight: 500; color: var(--text-primary);">
+                            {{ g.user.username if g.user else '管理员' }}
+                        </div>
+                        <a href="#" onclick="showChangePasswordModal()" style="display: block; padding: 8px 16px; color: var(--text-primary); text-decoration: none; font-size: 14px;">修改密码</a>
+                        <a href="/logout" style="display: block; padding: 8px 16px; color: var(--danger-color); text-decoration: none; font-size: 14px;">退出登录</a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 页面内容 -->
+        <div class="content-area">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- 详情抽屉（全局，JS控制显示） -->
+    <div id="detailDrawer" class="detail-drawer">
+        <div class="drawer-overlay" onclick="closeDrawer()"></div>
+        <div class="drawer-panel">
+            <div class="drawer-header">
+                <h3 id="drawerTitle">招标详情</h3>
+                <button class="btn-close" onclick="closeDrawer()">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="drawer-body" id="drawerContent">
+                <!-- 动态内容 -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- 修改密码模态框 -->
+    <div id="changePassModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1060;">
+        <div class="modal-backdrop" onclick="closeChangePassModal()" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);"></div>
+        <div class="modal-dialog" style="position: relative; margin: 100px auto; max-width: 400px; background: var(--bg-primary); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl);">
+            <div class="modal-content" style="padding: 24px;">
+                <h3 style="margin-bottom: 20px;">修改密码</h3>
+                <form onsubmit="handleChangePassword(event)">
+                    <div style="margin-bottom: 16px;">
+                        <label style="display:block; margin-bottom:8px;">原密码</label>
+                        <input type="password" id="oldPass" required style="width: 100%;">
+                    </div>
+                    <div style="margin-bottom: 16px;">
+                        <label style="display:block; margin-bottom:8px;">新密码</label>
+                        <input type="password" id="newPass" required style="width: 100%;">
+                    </div>
+                    <div style="margin-bottom: 24px;">
+                        <label style="display:block; margin-bottom:8px;">确认新密码</label>
+                        <input type="password" id="confirmPass" required style="width: 100%;">
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                        <button type="button" class="btn-secondary" onclick="closeChangePassModal()">取消</button>
+                        <button type="submit" class="btn-primary">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 提示框 (Toast) 容器 -->
+    <div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 1050;"></div>
+
+    <!-- 加载 JS -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        function toggleUserMenu() {
+            const menu = document.getElementById('userMenu');
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        }
+        
+        // Close menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.querySelector('.dropdown');
+            const menu = document.getElementById('userMenu');
+            if (dropdown && !dropdown.contains(event.target)) {
+                menu.style.display = 'none';
+            }
+        });
+
+        function showChangePasswordModal() {
+            document.getElementById('changePassModal').style.display = 'block';
+            document.getElementById('userMenu').style.display = 'none';
+        }
+
+        function closeChangePassModal() {
+            document.getElementById('changePassModal').style.display = 'none';
+            document.getElementById('oldPass').value = '';
+            document.getElementById('newPass').value = '';
+            document.getElementById('confirmPass').value = '';
+        }
+
+        async function handleChangePassword(e) {
+            e.preventDefault();
+            const oldPass = document.getElementById('oldPass').value;
+            const newPass = document.getElementById('newPass').value;
+            const confirmPass = document.getElementById('confirmPass').value;
+
+            if (newPass !== confirmPass) {
+                alert('两次输入的新密码不一致');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/change-password', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({old_password: oldPass, new_password: newPass})
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert('密码修改成功');
+                    closeChangePassModal();
+                } else {
+                    alert('修改失败: ' + data.message);
+                }
+            } catch (err) {
+                alert('请求失败');
+            }
+        }
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

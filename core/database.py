@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from typing import Optional
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import NullPool
@@ -83,6 +83,38 @@ class Database:
     def drop_tables(self):
         """Drop all database tables (use with caution!)."""
         Base.metadata.drop_all(bind=self.get_engine())
+
+    def test_connection(self) -> bool:
+        """Test if the database connection is working."""
+        try:
+            engine = self.get_engine()
+            # Log the connection string (mask password for security if possible, but for debug we need to know structure)
+            # URL is in engine.url
+            # print(f"DEBUG: Testing connection to {engine.url}") 
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            return True
+        except Exception as e:
+            # We need to know why it failed
+            import logging
+            logging.getLogger("WebApp").error(f"Database connection test failed: {e}")
+            return False
+
+    def reload_config(self, config: dict):
+        """Update configuration and reset engine."""
+        self.config = config
+        if self._engine:
+            self._engine.dispose()
+            self._engine = None
+        if self._session_factory:
+            self._session_factory = None
+        # Verify new config
+        try:
+            return self.test_connection()
+        except Exception as e:
+            import logging
+            logging.getLogger("WebApp").error(f"Reload config failed: {e}")
+            return False
 
 
 # Global database instance (initialized by app)

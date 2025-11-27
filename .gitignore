@@ -50,3 +50,17 @@ Thumbs.db
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Custom configuration (contains sensitive data)
+custom.yml
+custom.json
+
+# Test and debug scripts
+tests/debug_*.py
+tests/test_*.py
+tests/reproduce_*.py
+tests/verify_*.py
+
+# Sample data scripts
+fetch_samples.py
+import_samples.py

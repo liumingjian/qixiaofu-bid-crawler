@@ -11,14 +11,23 @@ wechat:
   fetch_rule:
     mode: recent_days
     value: 7
+  keyword_filters:
+    - "招标"
+    - "采购"
+    - "询价"
+    - "谈判"
+    - "磋商"
+    - "竞价"
+    - "大单"
+    - "中标"
 
 email:
-  smtp_server: smtp.example.com
+  smtp_server: smtp.163.com
   smtp_port: 465
-  sender_email: sender@example.com
-  sender_password: app-password
+  sender_email: 15521328037@163.com
+  sender_password: WPT9FgJMEmWnTJ2w
   recipient_emails:
-    - alerts@example.com
+    - 1414265830@qq.com
 
 scraper:
   headless: true
@@ -33,5 +42,5 @@ scheduler:
   timezone: Asia/Shanghai
 
 database:
-  url: postgresql://postgres:postgres@localhost:5432/qixiaofu_crawler
+  url: ""
   echo: false

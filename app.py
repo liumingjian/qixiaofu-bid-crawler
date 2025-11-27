@@ -6,7 +6,7 @@ import threading
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, MutableMapping, Optional
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, session, g, redirect, url_for
 
 from sqlalchemy import text
 
@@ -21,6 +21,8 @@ from utils.config_loader import load_config, dump_config, read_config_file
 from utils.logger import setup_logger
 from utils.config_migrator import _generate_account_id
 from models.wechat_account import WeChatAccount
+from core.auth_manager import AuthManager
+from models.user import User
 
 StatusDict = MutableMapping[str, Any]
 StatusUpdater = Callable[..., None]
@@ -206,6 +208,9 @@ def create_app(
     notifier: Optional[EmailNotificationService] = None,
     crawl_runner: Optional[CrawlRunner] = None,
     controller_executor: Optional[Executor] = None,
+    # Dependency Injection for testing
+    db_session_factory: Optional[Callable[[], Any]] = None,
+    auth_manager: Optional[AuthManager] = None,
 ) -> Flask:
     """Application factory so tests can inject mocked dependencies."""
     config_path = Path(config_path)
@@ -217,16 +222,211 @@ def create_app(
     logger = setup_logger("WebApp", log_dir=log_dir)
 
     db = init_db(config_data)
-    db.create_tables()
-    db_session_factory = db.get_session_factory()
-    seed_path = _find_seed_sql()
-    _apply_seed_sql(db_session_factory, seed_path, logger)
+    
+    # Check if DB is configured and working
+    db_ready = False
+    try:
+        if db.test_connection():
+            db.create_tables()
+            db_ready = True
+            logger.info("Database connection verified.")
+        else:
+            logger.warning("Database connection failed. Entering setup mode.")
+    except Exception as e:
+        logger.warning(f"Database init failed: {e}. Entering setup mode.")
+
+    db_session_factory = db_session_factory or db.get_session_factory()
+    
+    # Only seed if DB is ready
+    if db_ready:
+        seed_path = _find_seed_sql()
+        _apply_seed_sql(db_session_factory, seed_path, logger)
 
     app = Flask(
         __name__,
         template_folder="web/templates",
         static_folder="web/static",
     )
+
+    app.config["DB_READY"] = db_ready
+    app.secret_key = config_data.get("secret_key", "dev-secret-key-change-in-prod")
+    
+    auth_manager = auth_manager or AuthManager(db_session_factory)
+
+    @app.before_request
+    def load_logged_in_user():
+        auth_manager.load_logged_in_user()
+
+    @app.before_request
+    def check_setup_and_auth():
+        # 1. Setup check
+        if not app.config.get("DB_READY"):
+            if request.path.startswith("/static") or request.path.startswith("/api/setup") or request.path == "/setup":
+                return
+            return redirect("/setup")
+            
+        # 2. Auth check
+        public_endpoints = [
+            "/login", 
+            "/setup", 
+            "/static", 
+            "/api/login",
+            "/api/setup"
+        ]
+        if any(request.path.startswith(p) for p in public_endpoints):
+            return
+
+        if g.user is None:
+            if request.path.startswith("/api/"):
+                return jsonify({"success": False, "message": "Unauthorized"}), 401
+            return redirect("/login")
+
+    @app.route("/setup")
+    def setup_page():
+        if app.config.get("DB_READY"):
+            return redirect("/dashboard")
+        
+        current_cfg = {}
+        try:
+            current_cfg = _load_config(config_path).get("database", {})
+        except:
+            pass
+            
+        return render_template("setup.html", db_config=current_cfg)
+
+    @app.route("/login")
+    def login_page():
+        if g.user:
+            return redirect("/dashboard")
+        return render_template("login.html")
+
+    @app.route("/logout")
+    def logout():
+        auth_manager.logout()
+        return redirect("/login")
+
+    @app.post("/api/login")
+    def api_login():
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "message": "No data"}), 400
+        
+        if auth_manager.login(data.get("username"), data.get("password")):
+            return jsonify({"success": True})
+        
+        return jsonify({"success": False, "message": "用户名或密码错误"}), 401
+
+    @app.post("/api/change-password")
+    def api_change_password():
+        if not g.user:
+            return jsonify({"success": False, "message": "Unauthorized"}), 401
+            
+        data = request.get_json()
+        old = data.get("old_password")
+        new = data.get("new_password")
+        
+        if auth_manager.change_password(g.user["id"], old, new):
+            return jsonify({"success": True})
+        
+        return jsonify({"success": False, "message": "原密码错误"}), 400
+
+    @app.post("/api/setup/test-db")
+    def test_db_connection():
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "message": "无效数据"}), 400
+        
+        # Construct temporary config
+        temp_config = {
+            "database": {
+                "host": data.get("host"),
+                "port": data.get("port"),
+                "name": data.get("name"),
+                "user": data.get("user"),
+                "password": data.get("password"),
+            }
+        }
+        
+        # Use a temporary Database instance to test
+        from core.database import Database
+        try:
+            temp_db = Database(temp_config)
+            # Directly check connection to capture specific error
+            with temp_db.get_engine().connect() as conn:
+                conn.execute(text("SELECT 1"))
+            return jsonify({"success": True, "message": "连接成功"})
+        except Exception as e:
+            # Return specific error message (e.g. password failed)
+            logger.error(f"DB Test Connection failed: {e}")
+            return jsonify({"success": False, "message": str(e)}), 400
+
+    @app.post("/api/setup/save")
+    def save_setup():
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "message": "无效数据"}), 400
+            
+        try:
+            # Load current config
+            current = _load_config(config_path)
+            
+            # Update database section
+            if "database" not in current:
+                current["database"] = {}
+            
+            db_cfg = data.get("database", {})
+            
+            # Ensure port is int
+            port_val = db_cfg.get("port")
+            try:
+                port_val = int(port_val) if port_val else 5432
+            except (ValueError, TypeError):
+                port_val = 5432
+
+            current["database"].update({
+                "host": db_cfg.get("host"),
+                "port": port_val,
+                "name": db_cfg.get("name"),
+                "user": db_cfg.get("user"),
+                "password": db_cfg.get("password"),
+                "url": None 
+            })
+            
+            # Debug log
+            logger.info(f"Applying new database config: host={db_cfg.get('host')}, port={port_val}, user={db_cfg.get('user')}, db={db_cfg.get('name')}")
+            
+            # Save to custom.yml
+            exe_dir = Path(config_path).parent if config_path else Path.cwd()
+            custom_path = exe_dir / "custom.yml"
+            dump_config(custom_path, current)
+            
+            # Reload global DB
+            if db.reload_config(current):
+                db.create_tables()
+                
+                # Create Admin User if provided
+                admin_cfg = data.get("admin", {})
+                if admin_cfg and admin_cfg.get("username") and admin_cfg.get("password"):
+                    session = db.get_session()
+                    try:
+                        User.create_admin(session, admin_cfg["username"], admin_cfg["password"])
+                    except Exception as e:
+                        logger.error(f"Failed to create admin user: {e}")
+                    finally:
+                        session.close()
+
+                # Apply seed if needed
+                _apply_seed_sql(db.get_session_factory(), _find_seed_sql(), logger)
+                
+                app.config["DB_READY"] = True
+                return jsonify({"success": True, "message": "配置保存成功"})
+            else:
+                logger.error("Failed to reload DB config after save.")
+                return jsonify({"success": False, "message": "保存后连接失败"}), 500
+                
+        except Exception as e:
+            logger.error(f"Setup save failed: {e}", exc_info=True)
+            return jsonify({"success": False, "message": str(e)}), 500
 
     data_manager = data_manager or DataManager(
         str(config_path),
@@ -274,7 +474,24 @@ def create_app(
 
     @app.route("/")
     def index():
-        return render_template("index.html")
+        from flask import redirect
+        return redirect("/dashboard")
+
+    @app.route("/dashboard")
+    def dashboard():
+        return render_template("dashboard.html")
+
+    @app.route("/bidding-hall")
+    def bidding_hall():
+        return render_template("bidding_hall.html")
+
+    @app.route("/sources")
+    def sources():
+        return render_template("sources.html")
+
+    @app.route("/settings")
+    def settings():
+        return render_template("settings.html")
 
     @app.get("/api/bids")
     def get_bids():
@@ -336,14 +553,38 @@ def create_app(
             if not new_config:
                 return jsonify({"success": False, "message": "无效的配置数据"}), 400
             
+            # Load existing to merge
+            current = _load_config(config_path)
+            
+            # Deep merge specific sections to avoid wiping other fields (like fakeid/token if they were global)
+            # Though UI sends full sections, we should be careful.
+            
+            # Wechat section
+            if "wechat" in new_config:
+                if "wechat" not in current:
+                    current["wechat"] = {}
+                # Update only known keys from UI
+                current["wechat"]["days_limit"] = new_config["wechat"].get("days_limit")
+                current["wechat"]["filter_keyword_logic"] = new_config["wechat"].get("filter_keyword_logic")
+                current["wechat"]["keyword_filters"] = new_config["wechat"].get("keyword_filters")
+                current["wechat"]["filter_keywords"] = new_config["wechat"].get("filter_keywords")
+
+            # Email section
+            if "email" in new_config:
+                current["email"] = new_config["email"]
+                
+            # Scheduler
+            if "scheduler" in new_config:
+                current["scheduler"] = new_config["scheduler"]
+
             # Save to custom.yml next to the executable
             exe_dir = Path(config_path).parent if config_path else Path.cwd()
             custom_path = exe_dir / "custom.yml"
             
-            dump_config(custom_path, new_config)
+            dump_config(custom_path, current)
             
             # Hot reload: update in-memory config
-            _reload_service_configs(new_config)
+            _reload_service_configs(current)
             
             logger.info("Configuration saved and reloaded from web UI")
             return jsonify({"success": True, "message": "配置已保存并生效"})
@@ -401,6 +642,20 @@ def create_app(
                     account["id"] = _generate_account_id(account["name"])
                 if WeChatAccount.get_by_id(session, account["id"]):
                     return jsonify({"success": False, "message": "账号ID已存在"}), 400
+                
+                # Validate credentials
+                temp_config = {
+                    "wechat": {
+                        "fakeid": account.get("fakeid"),
+                        "token": account.get("token"),
+                        "cookie": account.get("cookie"),
+                    }
+                }
+                fetcher = SougouWeChatFetcher(config=temp_config)
+                is_valid, error_msg = fetcher.validate_credentials()
+                if not is_valid:
+                    return jsonify({"success": False, "message": error_msg}), 400
+
                 created = WeChatAccount.create(session, account)
                 payload = created.to_dict()
             finally:
@@ -420,6 +675,28 @@ def create_app(
 
             session = _db_session()
             try:
+                # Check if account exists first
+                existing = WeChatAccount.get_by_id(session, account_id)
+                if not existing:
+                    return jsonify({"success": False, "message": "账号不存在"}), 404
+
+                # Validate credentials if they are being updated
+                # We merge with existing data to ensure we have a full set for validation if partial update
+                merged_data = existing.to_dict()
+                merged_data.update(updated_account)
+                
+                temp_config = {
+                    "wechat": {
+                        "fakeid": merged_data.get("fakeid"),
+                        "token": merged_data.get("token"),
+                        "cookie": merged_data.get("cookie"),
+                    }
+                }
+                fetcher = SougouWeChatFetcher(config=temp_config)
+                is_valid, error_msg = fetcher.validate_credentials()
+                if not is_valid:
+                    return jsonify({"success": False, "message": error_msg}), 400
+
                 updated = WeChatAccount.update(session, account_id, updated_account)
                 if not updated:
                     return jsonify({"success": False, "message": "账号不存在"}), 404
@@ -447,6 +724,19 @@ def create_app(
             logger.error("Failed to delete account: %s", exc, exc_info=True)
             return jsonify({"success": False, "message": str(exc)}), 500
 
+    @app.post("/api/admin/reset")
+    def reset_system_data():
+        """Clear all historical data (articles and bids)."""
+        try:
+            success = data_manager.reset_data()
+            if success:
+                return jsonify({"success": True, "message": "所有历史数据已清空"})
+            else:
+                return jsonify({"success": False, "message": "数据清空失败"}), 500
+        except Exception as exc:
+            logger.error("Failed to reset data: %s", exc, exc_info=True)
+            return jsonify({"success": False, "message": str(exc)}), 500
+
     return app
 
 
@@ -469,9 +759,7 @@ def _build_scheduler_config(raw_cfg: Mapping[str, Any] | None) -> SchedulerConfi
     )
 
 
-if __name__ == "__main__":  # pragma: no cover
-    application = create_app()
-    application.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)
+
 
 
 def _find_seed_sql() -> Optional[Path]:
@@ -506,3 +794,8 @@ def _apply_seed_sql(session_factory, sql_path: Optional[Path], logger) -> None:
             logger.error("Failed to apply seed SQL %s: %s", sql_path, exc)
     finally:
         session.close()
+
+
+if __name__ == "__main__":  # pragma: no cover
+    application = create_app()
+    application.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)

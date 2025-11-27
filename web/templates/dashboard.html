@@ -1,0 +1,70 @@
+{% extends "layout.html" %}
+
+{% block page_title %}仪表盘{% endblock %}
+
+{% block content %}
+<div class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--spacing-6); margin-bottom: var(--spacing-8);">
+    <!-- 统计卡片 -->
+    <div class="card stat-card">
+        <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: var(--spacing-2);">今日新增招标</div>
+        <div style="font-size: 32px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--spacing-2);" id="todayBids">0</div>
+        <div class="badge badge-success" id="todayBidsTrend" style="display: none;">↑ 12%</div>
+    </div>
+    <div class="card stat-card">
+        <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: var(--spacing-2);">活跃采集源</div>
+        <div style="font-size: 32px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--spacing-2);" id="activeSources">0</div>
+    </div>
+    <div class="card stat-card">
+        <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: var(--spacing-2);">系统状态</div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span id="systemStatusDot" style="width: 10px; height: 10px; border-radius: 50%; background-color: var(--success-color);"></span>
+            <span id="systemStatusText" style="font-size: 16px; font-weight: 500;">运行中</span>
+        </div>
+    </div>
+    <div class="card stat-card">
+        <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: var(--spacing-2);">总招标信息</div>
+        <div style="font-size: 32px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--spacing-2);" id="totalBids">0</div>
+    </div>
+</div>
+
+<div class="row" style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--spacing-6);">
+    <!-- 最近招标 -->
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-4);">
+            <h3>最近招标</h3>
+            <a href="/bidding-hall" class="btn-secondary" style="height: 32px; font-size: 12px; padding: 0 12px;">查看全部</a>
+        </div>
+        <div class="table-wrapper" style="border: none; box-shadow: none;">
+            <table class="bid-table">
+                <thead>
+                    <tr>
+                        <th>项目名称</th>
+                        <th width="100">预算</th>
+                        <th width="100">状态</th>
+                    </tr>
+                </thead>
+                <tbody id="recentBidsTableBody">
+                    <!-- JS 动态加载 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 最近活动日志 -->
+    <div class="card">
+        <h3 style="margin-bottom: var(--spacing-4);">系统日志</h3>
+        <div id="activityList" style="display: flex; flex-direction: column; gap: var(--spacing-3);">
+            <!-- JS 动态加载 -->
+            <div class="text-secondary text-center">暂无日志</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        loadDashboardStats();
+    });
+</script>
+{% endblock %}

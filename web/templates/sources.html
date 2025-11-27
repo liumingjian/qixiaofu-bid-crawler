@@ -1,0 +1,112 @@
+{% extends "layout.html" %}
+
+{% block page_title %}资源管理{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-6);">
+        <h3>微信公众号</h3>
+        <button class="btn-primary" onclick="showAccountModal()">
+            <i class="bi bi-plus-lg" style="margin-right: 8px;"></i>添加公众号
+        </button>
+    </div>
+    
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>名称</th>
+                    <th>状态</th>
+                    <th>单次抓取量</th>
+                    <th>时间限制(天)</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="wechatAccountsTable">
+                <!-- JS Load -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 账号编辑模态框 (使用 Bootstrap Modal 结构，但自定义样式) -->
+<div id="accountModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1050;">
+    <div class="modal-backdrop" onclick="closeAccountModal()" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);"></div>
+    <div class="modal-dialog" style="position: relative; margin: 50px auto; max-width: 600px; background: var(--bg-primary); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl);">
+        <div class="modal-content">
+            <div class="modal-header" style="padding: var(--spacing-6); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                <h4 id="accountModalTitle" style="margin: 0;">添加公众号</h4>
+                <button class="btn-close" onclick="closeAccountModal()"><i class="bi bi-x"></i></button>
+            </div>
+            <div class="modal-body" style="padding: var(--spacing-6);">
+                <input type="hidden" id="accountId">
+                <div style="margin-bottom: var(--spacing-4);">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">账号名称</label>
+                    <input type="text" id="accountName" placeholder="例如：七小服">
+                </div>
+                <div style="margin-bottom: var(--spacing-4);">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">FakeID</label>
+                    <input type="text" id="accountFakeid" placeholder="公众号唯一标识">
+                </div>
+                <div style="margin-bottom: var(--spacing-4);">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Token</label>
+                    <input type="text" id="accountToken">
+                </div>
+                <div style="margin-bottom: var(--spacing-4);">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Cookie</label>
+                    <textarea id="accountCookie" rows="3"></textarea>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-4); margin-bottom: var(--spacing-4);">
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 500;">单次抓取量</label>
+                        <input type="number" id="accountPageSize" value="5">
+                    </div>
+                </div>
+
+                <div style="margin-bottom: var(--spacing-4); padding-top: var(--spacing-4); border-top: 1px dashed var(--border-color);">
+                    <h5 style="font-size: 14px; font-weight: 600; margin-bottom: var(--spacing-4); color: var(--primary-color);">过滤规则（覆盖全局）</h5>
+                    
+                    <div style="margin-bottom: var(--spacing-4);">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 500;">时间限制(天)</label>
+                        <input type="number" id="accountDaysLimit" value="7">
+                        <div style="color: var(--text-secondary); font-size: 12px; margin-top: 2px;">覆盖全局设置。</div>
+                    </div>
+
+                    <div style="margin-bottom: var(--spacing-4);">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 500;">关键字</label>
+                        <div style="display: flex; gap: var(--spacing-2); margin-bottom: 8px;">
+                            <input type="text" id="accountKeywordInput" placeholder="输入关键字后按回车" style="flex: 1;">
+                            <select id="accountKeywordLogic" style="width: 140px;">
+                                <option value="OR">满足任意一个</option>
+                                <option value="AND">必须同时满足</option>
+                            </select>
+                        </div>
+                        <div id="accountKeywordsContainer" style="display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); min-height: 42px;">
+                            <!-- JS dynamic tags -->
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: var(--spacing-4);">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="accountEnabled" checked style="margin-right: 8px; width: auto;">
+                        <span>启用此账号</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: var(--spacing-6); border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: var(--spacing-4);">
+                <button class="btn-secondary" onclick="closeAccountModal()">取消</button>
+                <button class="btn-primary" onclick="saveAccount()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        loadWeChatAccounts();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,176 @@
+{% extends "layout.html" %}
+
+{% block page_title %}系统配置{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px;">
+    <!-- 邮件通知配置 -->
+    <div class="card" style="margin-bottom: var(--spacing-6);">
+        <h3
+            style="margin-bottom: var(--spacing-4); padding-bottom: var(--spacing-4); border-bottom: 1px solid var(--border-color);">
+            <i class="bi bi-envelope me-2"></i> 邮件通知
+        </h3>
+
+        <div style="margin-bottom: var(--spacing-4);">
+            <label style="display: block; margin-bottom: 8px; font-weight: 500;">接收人邮箱列表</label>
+            <div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">每行一个邮箱地址</div>
+            <textarea id="configRecipients" rows="5" placeholder="user@example.com"></textarea>
+        </div>
+    </div>
+
+    <!-- 定时任务配置 -->
+    <div class="card" style="margin-bottom: var(--spacing-6);">
+        <h3
+            style="margin-bottom: var(--spacing-4); padding-bottom: var(--spacing-4); border-bottom: 1px solid var(--border-color);">
+            <i class="bi bi-clock me-2"></i> 定时任务
+        </h3>
+
+        <div style="margin-bottom: var(--spacing-4);">
+            <label style="display: flex; align-items: center; cursor: pointer; margin-bottom: var(--spacing-4);">
+                <input type="checkbox" id="configSchedulerEnabled" style="margin-right: 8px; width: auto;">
+                <span style="font-weight: 500;">启用自动爬取</span>
+            </label>
+        </div>
+
+        <div style="margin-bottom: var(--spacing-4);">
+            <label style="display: block; margin-bottom: 8px; font-weight: 500;">Cron 表达式</label>
+            <input type="text" id="configCron" placeholder="例如: 0 8 * * * (每天早上8点)">
+            <div style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">
+                常用示例: "0 8 * * *" (每天08:00), "0 */2 * * *" (每2小时)
+            </div>
+        </div>
+    </div>
+
+    <!-- 过滤规则配置 -->
+    <div class="card" style="margin-bottom: var(--spacing-6);">
+        <h3
+            style="margin-bottom: var(--spacing-4); padding-bottom: var(--spacing-4); border-bottom: 1px solid var(--border-color);">
+            <i class="bi bi-funnel me-2"></i> 全局过滤规则
+        </h3>
+
+        <div style="margin-bottom: var(--spacing-4);">
+            <label style="display: block; margin-bottom: 8px; font-weight: 500;">时间范围（天）</label>
+            <input type="number" id="configDaysLimit" placeholder="7" value="7">
+            <div style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">获取最近 N 天发布的文章。设为 0
+                表示不限制天数（按数量限制）。</div>
+        </div>
+
+        <div style="margin-bottom: var(--spacing-4);">
+            <label style="display: block; margin-bottom: 8px; font-weight: 500;">关键字过滤</label>
+            <div style="display: flex; gap: var(--spacing-2); margin-bottom: 8px;">
+                <input type="text" id="newKeywordInput" placeholder="输入关键字后按回车" style="flex: 1;">
+                <select id="configKeywordLogic" style="width: 140px;">
+                    <option value="OR">满足任意一个</option>
+                    <option value="AND">必须同时满足</option>
+                </select>
+            </div>
+            <div id="keywordsContainer"
+                style="display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); min-height: 42px;">
+                <!-- JS dynamic tags -->
+            </div>
+            <div style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">标题中包含指定关键字的文章才会被抓取。留空表示不过滤。
+            </div>
+        </div>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; margin-bottom: var(--spacing-8);">
+        <button class="btn-primary" onclick="saveConfig()">
+            <i class="bi bi-save me-2" style="margin-right: 8px;"></i>保存配置
+        </button>
+    </div>
+
+    <!-- 修改密码 -->
+    <div class="card" style="margin-bottom: var(--spacing-6);">
+        <h3
+            style="margin-bottom: var(--spacing-4); padding-bottom: var(--spacing-4); border-bottom: 1px solid var(--border-color);">
+            <i class="bi bi-key me-2"></i> 修改密码
+        </h3>
+
+        <div style="margin-bottom: var(--spacing-4);">
+            <label style="display: block; margin-bottom: 8px; font-weight: 500;">原密码</label>
+            <input type="password" id="oldPassword" placeholder="请输入当前密码">
+        </div>
+
+        <div style="margin-bottom: var(--spacing-4);">
+            <label style="display: block; margin-bottom: 8px; font-weight: 500;">新密码</label>
+            <input type="password" id="newPassword" placeholder="请输入新密码">
+        </div>
+
+        <div style="margin-bottom: var(--spacing-4);">
+            <label style="display: block; margin-bottom: 8px; font-weight: 500;">确认新密码</label>
+            <input type="password" id="confirmPassword" placeholder="请再次输入新密码">
+        </div>
+
+        <div style="display: flex; justify-content: flex-end;">
+            <button class="btn-secondary" onclick="changePassword()">
+                修改密码
+            </button>
+        </div>
+    </div>
+
+    <!-- 危险区域 -->
+    <div class="card" style="margin-bottom: var(--spacing-6); border-color: var(--danger-color);">
+        <h3
+            style="margin-bottom: var(--spacing-4); padding-bottom: var(--spacing-4); border-bottom: 1px solid var(--border-color); color: var(--danger-color);">
+            <i class="bi bi-exclamation-triangle me-2"></i> 危险区域
+        </h3>
+
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <div style="font-weight: 500; margin-bottom: 4px;">清空历史数据</div>
+                <div style="color: var(--text-secondary); font-size: 12px;">将删除所有已爬取的文章记录和招标信息，此操作不可恢复。</div>
+            </div>
+            <button class="btn-danger" onclick="resetSystemData()">
+                <i class="bi bi-trash me-2" style="margin-right: 8px;"></i>清空数据
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        loadConfig();
+    });
+
+    async function changePassword() {
+        const oldPass = document.getElementById('oldPassword').value;
+        const newPass = document.getElementById('newPassword').value;
+        const confirmPass = document.getElementById('confirmPassword').value;
+
+        if (!oldPass || !newPass) {
+            alert('请输入原密码和新密码');
+            return;
+        }
+
+        if (newPass !== confirmPass) {
+            alert('两次输入的新密码不一致');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    old_password: oldPass,
+                    new_password: newPass
+                })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                alert('密码修改成功');
+                document.getElementById('oldPassword').value = '';
+                document.getElementById('newPassword').value = '';
+                document.getElementById('confirmPassword').value = '';
+            } else {
+                alert('修改失败: ' + (data.message || '未知错误'));
+            }
+        } catch (err) {
+            alert('请求失败: ' + err.message);
+        }
+    }
+</script>
+{% endblock %}
